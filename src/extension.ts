@@ -61,6 +61,9 @@ export function activate(context: vscode.ExtensionContext) {
             currentPanel.onDidDispose(() => { currentPanel = undefined; }, null, context.subscriptions);
         }
 
+        // Show the Image Sidebar
+        vscode.commands.executeCommand('xslt-viewer-images.focus');
+
         // Handle messages from the Webview (Click-to-Jump)
         currentPanel.webview.onDidReceiveMessage(message => {
             if (message.command === 'jumpToCode' && xsltDoc) {

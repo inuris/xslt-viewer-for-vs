@@ -15,7 +15,8 @@
     "commands": [
       {
         "command": "xslt-viewer.preview",
-        "title": "XSLT: Preview Transformation"
+        "title": "XSLT: Preview Transformation",
+        "icon": "$(preview)"
       },
       {
         "command": "xslt-viewer.revealImage",
@@ -39,7 +40,31 @@
           "name": "Embedded Images"
         }
       ]
-    }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "xslt-viewer.preview",
+          "group": "navigation",
+          "when": "resourceLangId == xml || resourceLangId == xsl"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "xslt-viewer.preview",
+          "group": "navigation",
+          "when": "resourceLangId == xml || resourceLangId == xsl"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "xslt-viewer.preview",
+        "key": "ctrl+alt+x",
+        "mac": "cmd+alt+x",
+        "when": "editorTextFocus"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
