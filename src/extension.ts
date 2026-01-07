@@ -6,6 +6,31 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
 
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
+    let activeXml: vscode.TextDocument | undefined;
+    let activeXslt: vscode.TextDocument | undefined;
+    let updateTimeout: NodeJS.Timeout | undefined;
+
+    // Helper: Trigger Debounced Update
+    const triggerAutoUpdate = () => {
+        if (updateTimeout) clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+            if (currentPanel && currentPanel.visible && activeXml && activeXslt) {
+                runUpdate();
+            }
+        }, 500);
+    };
+
+    // Helper: Run Transformation
+    const runUpdate = async () => {
+        if (!currentPanel || !activeXml || !activeXslt) return;
+        try {
+             const instrumented = instrumentXslt(activeXslt.getText());
+             const result = await runPythonTransformation(context, activeXml.getText(), instrumented);
+             currentPanel.webview.html = getWebviewContent(result);
+        } catch (e: any) {
+             currentPanel.webview.html = getWebviewError(e.message || String(e));
+        }
+    };
 
     const disposablePreview = vscode.commands.registerCommand('xslt-viewer.preview', async () => {
         const editor = vscode.window.activeTextEditor;
@@ -15,38 +40,58 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const doc = editor.document;
-        let xmlContent = '';
-        let xsltContent = '';
-        let xsltDoc: vscode.TextDocument | undefined;
+        let selectedXml: vscode.TextDocument | undefined;
+        let selectedXslt: vscode.TextDocument | undefined;
 
         // Determine context (Is user in XML or XSLT?)
-        // Simple logic: If .xsl/.xslt, ask for XML. If .xml, ask for XSLT.
         if (doc.languageId === 'xml' || doc.fileName.endsWith('.xml')) {
              if (doc.getText().includes('<xsl:stylesheet') || doc.getText().includes('<xsl:transform')) {
                  // Is XSLT
-                 xsltDoc = doc;
-                 xsltContent = doc.getText();
+                 selectedXslt = doc;
                  const xmlDoc = await pickWorkspaceFile('Select an XML file to transform', ['xml']);
-                 if (xmlDoc) xmlContent = xmlDoc.getText();
+                 if (xmlDoc) selectedXml = xmlDoc;
              } else {
                  // Is XML
-                 xmlContent = doc.getText();
-                 xsltDoc = await pickWorkspaceFile('Select the XSLT stylesheet', ['xsl', 'xslt']);
-                 if (xsltDoc) xsltContent = xsltDoc.getText();
+                 selectedXml = doc;
+                 // 1. Try to auto-detect XSLT from xml-stylesheet PI
+                 const match = doc.getText().match(/<\?xml-stylesheet\s+.*href=["']([^"']+)["'].*\?>/);
+                 if (match) {
+                     const xsltRelPath = match[1];
+                     const xmlDir = path.dirname(doc.uri.fsPath);
+                     const absPath = path.resolve(xmlDir, xsltRelPath);
+                     
+                     try {
+                        const uri = vscode.Uri.file(absPath);
+                        selectedXslt = await vscode.workspace.openTextDocument(uri);
+                        // Auto-open the XSLT file to enable click-to-jump context
+                        await vscode.window.showTextDocument(selectedXslt, vscode.ViewColumn.One, true); 
+                        vscode.window.setStatusBarMessage(`Auto-detected XSLT: ${xsltRelPath}`, 3000);
+                     } catch (e) {
+                         console.log('Linked XSLT not found:', absPath);
+                     }
+                 }
+
+                 // 2. Fallback to manual selection
+                 if (!selectedXslt) {
+                    selectedXslt = await pickWorkspaceFile('Select the XSLT stylesheet', ['xsl', 'xslt']);
+                 }
              }
         } else if (doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl') || doc.fileName.endsWith('.xslt')) {
-             xsltDoc = doc;
-             xsltContent = doc.getText();
+             selectedXslt = doc;
              const xmlDoc = await pickWorkspaceFile('Select an XML file to transform', ['xml']);
-             if (xmlDoc) xmlContent = xmlDoc.getText();
+             if (xmlDoc) selectedXml = xmlDoc;
         } else {
             vscode.window.showErrorMessage('Active file is not XML or XSLT');
             return;
         }
 
-        if (!xmlContent || !xsltContent || !xsltDoc) {
+        if (!selectedXml || !selectedXslt) {
             return; // User cancelled
         }
+
+        // Update State
+        activeXml = selectedXml;
+        activeXslt = selectedXslt;
 
         // Create or show panel
         if (currentPanel) {
@@ -66,33 +111,25 @@ export function activate(context: vscode.ExtensionContext) {
 
         // Handle messages from the Webview (Click-to-Jump)
         currentPanel.webview.onDidReceiveMessage(message => {
-            if (message.command === 'jumpToCode' && xsltDoc) {
+            if (message.command === 'jumpToCode' && activeXslt) {
                 if (message.line) {
                     const line = parseInt(message.line) - 1; // 0-based
-                    if (line >= 0 && line < xsltDoc.lineCount) {
+                    if (line >= 0 && line < activeXslt.lineCount) {
                         const range = new vscode.Range(line, 0, line, 0);
-                        vscode.window.showTextDocument(xsltDoc, {
+                        vscode.window.showTextDocument(activeXslt, {
                             viewColumn: vscode.ViewColumn.One,
                             selection: range
                         });
                         vscode.window.activeTextEditor?.revealRange(range, vscode.TextEditorRevealType.InCenter);
                     }
                 } else {
-                     findAndJump(xsltDoc, message);
+                     findAndJump(activeXslt, message);
                 }
             }
         }, undefined, context.subscriptions);
 
         currentPanel.webview.html = getWebviewLoading();
-
-        try {
-            // Instrument XSLT to add line numbers to literal elements
-            const instrumentedgXslt = instrumentXslt(xsltContent);
-            const result = await runPythonTransformation(context, xmlContent, instrumentedgXslt);
-            currentPanel.webview.html = getWebviewContent(result);
-        } catch (e: any) {
-            currentPanel.webview.html = getWebviewError(e.message || String(e));
-        }
+        runUpdate();        
     });
 
     context.subscriptions.push(disposablePreview);
@@ -103,11 +140,114 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.window.registerWebviewViewProvider('xslt-viewer-images', sidebarProvider)
 	);
 
-    // Refresh the sidebar when the file changes
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => sidebarProvider.refresh()));
+     // Event Listeners
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+        sidebarProvider.refresh();
+        if (!editor || !currentPanel || !currentPanel.visible) return;
+
+        const doc = editor.document;
+        // If we switched to one of the active pair, just ensure they are set (already set)
+        if (doc === activeXml || doc === activeXslt) return;
+
+        // Auto-switch for new XML files with linked XSLT
+        if (doc.languageId === 'xml' || doc.fileName.endsWith('.xml')) {
+             const text = doc.getText();
+             const match = text.match(/<\?xml-stylesheet\s+.*href=["']([^"']+)["'].*\?>/);
+             if (match) {
+                 const xsltRelPath = match[1];
+                 const xmlDir = path.dirname(doc.uri.fsPath);
+                 const absPath = path.resolve(xmlDir, xsltRelPath);
+                 try {
+                     const uri = vscode.Uri.file(absPath);
+                     const newXslt = await vscode.workspace.openTextDocument(uri);
+                     activeXml = doc;
+                     activeXslt = newXslt;
+                     triggerAutoUpdate();
+                     vscode.window.setStatusBarMessage(`Preview auto-switched to ${path.basename(doc.fileName)}`, 3000);
+                 } catch (e) {
+                     // ignore
+                 }
+             }
+        }
+    }));
+
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(e => {
+        // Update Sidebar
         if (vscode.window.activeTextEditor && e.document === vscode.window.activeTextEditor.document) {
             sidebarProvider.refresh();
+        }
+        // Update Preview
+        if (activeXml && e.document.uri.toString() === activeXml.uri.toString()) triggerAutoUpdate();
+        if (activeXslt && e.document.uri.toString() === activeXslt.uri.toString()) triggerAutoUpdate();
+    }));
+
+    // Command: Switch Linked File
+    context.subscriptions.push(vscode.commands.registerCommand('xslt-viewer.switchFile', async () => {
+        let editor = vscode.window.activeTextEditor;
+        // Robustness: If no active editor (focus in sidebar), try first visible text editor
+        if (!editor && vscode.window.visibleTextEditors.length > 0) {
+            editor = vscode.window.visibleTextEditors[0];
+        }
+        
+        if (!editor) return;
+
+        const doc = editor.document;
+        const text = doc.getText();
+        const dir = path.dirname(doc.uri.fsPath);
+
+        if (doc.languageId === 'xml' || doc.fileName.endsWith('.xml')) {
+            // XML -> XSLT
+            const match = text.match(/<\?xml-stylesheet\s+.*href=["']([^"']+)["'].*\?>/);
+            if (match) {
+                const targetPath = path.resolve(dir, match[1]);
+                try {
+                    const doc = await vscode.workspace.openTextDocument(targetPath);
+                    vscode.window.showTextDocument(doc);
+                } catch {
+                     vscode.window.showErrorMessage(`Linked XSLT not found: ${match[1]}`);
+                }
+            } else {
+                 vscode.window.showInformationMessage('No linked XSLT found in this XML.');
+            }
+        } else {
+            // XSLT -> XML
+            // Search open documents first
+            const openDocs = vscode.workspace.textDocuments;
+            const targetName = path.basename(doc.fileName);
+            
+            // Heuristic A: Open docs that reference this XSLT
+            const candidates: vscode.TextDocument[] = [];
+            for (const d of openDocs) {
+                if (d.fileName.endsWith('.xml') && d.getText().includes(targetName)) {
+                     candidates.push(d);
+                }
+            }
+
+            if (candidates.length === 1) {
+                 vscode.window.showTextDocument(candidates[0]);
+                 return;
+            } else if (candidates.length > 1) {
+                 const selected = await vscode.window.showQuickPick(candidates.map(d => d.fileName), { placeHolder: 'Select referencing XML' });
+                 if (selected) {
+                     const d = candidates.find(c => c.fileName === selected);
+                     if(d) vscode.window.showTextDocument(d);
+                 }
+                 return;
+            }
+
+            // Heuristic B: Same filename but .xml? (foo.xsl -> foo.xml)
+            const potentialXml = doc.uri.fsPath.replace(/\.(xslt|xsl)$/, '.xml');
+            try {
+                 // We use stat to check existence because we don't have fs imported as 'fs' (only in 'fs' namespace if imported).
+                 // Actually we can use workspace.fs.stat for async check or openTextDocument to try.
+                 const d = await vscode.workspace.openTextDocument(potentialXml);
+                 vscode.window.showTextDocument(d);
+                 return;
+            } catch (e) {
+                // Ignore
+            }
+            
+            vscode.window.showInformationMessage('Could not find a linked XML file in open editors.');
         }
     }));
 }
@@ -374,6 +514,10 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
                      this.handleReplace(data.range);
                      break;
                 }
+                case 'switchFile': {
+                     vscode.commands.executeCommand('xslt-viewer.switchFile');
+                     break;
+                }
             }
         });
 
@@ -511,6 +655,28 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
                 body { font-family: var(--vscode-font-family); padding: 10px; color: var(--vscode-foreground); }
+                .header-actions {
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid var(--vscode-widget-border);
+                    margin-bottom: 10px;
+                }
+                .btn-switch {
+                    width: 100%;
+                    padding: 6px;
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    border-radius: 2px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    font-size: 11px;
+                }
+                .btn-switch:hover {
+                    background: var(--vscode-button-hoverBackground);
+                }
                 .image-item {
                     display: flex;
                     align-items: center;
@@ -561,6 +727,11 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
             </style>
         </head>
         <body>
+            <div class="header-actions">
+                 <button class="btn-switch" onclick="switchFile()">
+                    <span>↔</span> Switch XML/XSLT
+                 </button>
+            </div>
             <div id="image-list">Scanning...</div>
             <script>
                 const vscode = acquireVsCodeApi();
@@ -577,6 +748,10 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
                             break;
                     }
                 });
+
+                function switchFile() {
+                    vscode.postMessage({ type: 'switchFile' });
+                }
 
                 function render(images) {
                     if (images.length === 0) {

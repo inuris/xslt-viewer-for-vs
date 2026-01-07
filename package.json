@@ -21,6 +21,11 @@
       {
         "command": "xslt-viewer.revealImage",
         "title": "Reveal Image source"
+      },
+      {
+        "command": "xslt-viewer.switchFile",
+        "title": "Switch to Linked XML/XSLT",
+        "icon": "$(arrow-swap)"
       }
     ],
     "viewsContainers": {
@@ -45,6 +50,11 @@
       "editor/title": [
         {
           "command": "xslt-viewer.preview",
+          "group": "navigation",
+          "when": "resourceLangId == xml || resourceLangId == xsl"
+        },
+        {
+          "command": "xslt-viewer.switchFile",
           "group": "navigation",
           "when": "resourceLangId == xml || resourceLangId == xsl"
         }
