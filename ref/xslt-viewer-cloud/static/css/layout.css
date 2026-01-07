@@ -1,0 +1,120 @@
+html, body { height: 100%; margin: 0; }
+body { font-family: Arial, sans-serif; padding: 0; box-sizing: border-box; display: flex; flex-direction: column; }
+* { box-sizing: border-box; }
+
+header { 
+    padding: 8px 12px; 
+    border-bottom: 1px solid #e0e0e0; 
+    flex-shrink: 0; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+}
+
+.layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar {
+    position: relative;
+    width: var(--sidebar-width);
+    min-width: 200px;
+    max-width: 80vw;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: #fcfcfc;
+    transition: background-color 0.2s;
+}
+
+.sidebar.highlight {
+    background-color: #e3f2fd;
+    border: 2px dashed #2196f3;
+}
+
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-left: 0;
+    height: 100%;
+}
+
+#preview-container {
+    height: var(--preview-height);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative; /* Ensure absolute children are relative to this */
+}
+
+#editor-container {
+    flex: 1;
+    min-height: 100px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Resizers */
+.resizer {
+    width: 5px;
+    cursor: col-resize;
+    background-color: #f0f0f0;
+    border-left: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    transition: background-color 0.2s;
+    z-index: 10;
+}
+.resizer:hover, .resizer.resizing {
+    background-color: #ccc;
+}
+
+.vertical-resizer {
+    height: 5px;
+    cursor: row-resize;
+    background-color: #f0f0f0;
+    border-top: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+    z-index: 10;
+}
+.vertical-resizer:hover, .vertical-resizer.resizing {
+    background-color: #ccc;
+}
+
+/* 3-Column Layout Styles */
+body.layout-3col .main {
+    flex-direction: row;
+}
+
+body.layout-3col #editor-container {
+    order: 1;
+    flex: 1;
+    height: 100%;
+    width: auto;
+}
+
+body.layout-3col #dragMeVertical {
+    order: 2;
+    cursor: col-resize;
+    width: 5px;
+    height: 100%;
+    border-top: none;
+    border-bottom: none;
+    border-left: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+}
+
+body.layout-3col #preview-container {
+    order: 3;
+    height: 100%;
+    width: var(--preview-width);
+}

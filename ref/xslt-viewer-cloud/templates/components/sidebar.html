@@ -1,0 +1,74 @@
+<aside class="sidebar" aria-label="Directory sidebar">
+    <div class="filter-wrap">
+        <button id="uploadBtn" class="upload-btn-sidebar" title="Upload Zip">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11 14.9861C11 15.5384 11.4477 15.9861 12 15.9861C12.5523 15.9861 13 15.5384 13 14.9861V7.82831L16.2428 11.0711L17.657 9.65685L12.0001 4L6.34326 9.65685L7.75748 11.0711L11 7.82854V14.9861Z" fill="currentColor"/>
+                <path d="M4 14H6V18H18V14H20V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V14Z" fill="currentColor"/>
+            </svg>
+            <span>Upload files</span>
+        </button>
+
+        <div class="filter-row">
+            <div class="filter-input-container">
+                <input type="text" id="filterInput" placeholder="Filter..." autocomplete="off">
+                <button id="filterClear" class="clear-btn" aria-label="Clear filter">✖</button>
+            </div>
+            <button id="sortBtn" class="sort-btn" title="Sort A-Z / Z-A">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g><path d="M9.33344 8.00009H4.55205L10.2761 2.27603C10.4625 2.08956 10.5895 1.852 10.6409 1.59339C10.6923 1.33479 10.6659 1.06674 10.565 0.823137C10.4641 0.579535 10.2933 0.371314 10.0741 0.2248C9.85485 0.078286 9.59711 5.62998e-05 9.33344 0H1.33335C0.979723 0 0.64058 0.140478 0.390529 0.39053C0.140477 0.640581 0 0.979723 0 1.33335C0 1.68698 0.140477 2.02612 0.390529 2.27617C0.64058 2.52622 0.979723 2.6667 1.33335 2.6667H6.11474L0.390671 8.39077C0.204256 8.57724 0.0773131 8.81479 0.0258891 9.0734C-0.025535 9.332 0.000869393 9.60005 0.101764 9.84366C0.202659 10.0873 0.373513 10.2955 0.592729 10.442C0.811945 10.5885 1.06968 10.6667 1.33335 10.6668H9.33344C9.68707 10.6668 10.0262 10.5263 10.2763 10.2763C10.5263 10.0262 10.6668 9.68707 10.6668 9.33344C10.6668 8.97982 10.5263 8.64067 10.2763 8.39062C10.0262 8.14057 9.68707 8.00009 9.33344 8.00009Z" fill="currentColor"/><path d="M0.735448 23.804C0.892868 23.8831 1.06442 23.9303 1.24017 23.9428C1.41593 23.9552 1.59241 23.9327 1.75942 23.8765C1.92643 23.8204 2.08065 23.7317 2.21316 23.6155C2.34568 23.4994 2.45387 23.3582 2.53147 23.2L2.82214 22.604H7.84087L8.1382 23.2C8.21647 23.3571 8.32493 23.4973 8.45738 23.6126C8.58983 23.7278 8.74368 23.8158 8.91014 23.8716C9.07661 23.9274 9.25243 23.9498 9.42757 23.9377C9.60271 23.9255 9.77374 23.8789 9.93089 23.8007C10.088 23.7224 10.2282 23.6139 10.3435 23.4815C10.4587 23.349 10.5467 23.1952 10.6025 23.0287C10.6583 22.8623 10.6807 22.6864 10.6686 22.5113C10.6564 22.3362 10.6098 22.1651 10.5316 22.008L6.53152 14.0079C6.40832 13.8012 6.23357 13.6301 6.02439 13.5113C5.8152 13.3925 5.57875 13.33 5.33817 13.33C5.09759 13.33 4.86114 13.3925 4.65195 13.5113C4.44277 13.6301 4.26802 13.8012 4.14482 14.0079L0.144775 22.008C0.0651533 22.1646 0.0172706 22.3354 0.00387886 22.5106C-0.00951285 22.6858 0.0118506 22.8619 0.0667409 23.0288C0.121631 23.1957 0.208966 23.3501 0.323726 23.4831C0.438486 23.6162 0.578407 23.7252 0.735448 23.804ZM5.3315 17.5853L6.50752 19.9373H4.15549L5.3315 17.5853Z" fill="currentColor"/><path d="M23.6113 6.27579C23.3613 6.52575 23.0222 6.66618 22.6686 6.66618C22.3151 6.66618 21.976 6.52575 21.7259 6.27579L20.0019 4.55177V22.6667C20.0019 23.0203 19.8614 23.3594 19.6114 23.6095C19.3613 23.8595 19.0222 24 18.6686 24C18.3149 24 17.9758 23.8595 17.7258 23.6095C17.4757 23.3594 17.3352 23.0203 17.3352 22.6667V4.55177L15.6112 6.27579C15.3597 6.51867 15.0229 6.65306 14.6733 6.65002C14.3237 6.64699 13.9893 6.50676 13.7421 6.25955C13.4949 6.01233 13.3547 5.67791 13.3516 5.32831C13.3486 4.97871 13.483 4.6419 13.7258 4.39043L17.7259 0.390385C17.9759 0.14042 18.315 -1.90735e-06 18.6686 -1.90735e-06C19.0221 -1.90735e-06 19.3612 0.14042 19.6113 0.390385L23.6113 4.39043C23.8613 4.64047 24.0017 4.97955 24.0017 5.33311C24.0017 5.68667 23.8613 6.02575 23.6113 6.27579Z" fill="currentColor"/></g></svg>
+            </button>
+            <button id="downloadBtn" class="sort-btn" title="Download Selected" disabled style="opacity: 0.5;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 16L7 11H10V4H14V11H17L12 16ZM2 20V14H4V18H20V14H22V20H2Z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    <ul id="fileList" class="file-list">
+        <!-- Content rendered by JS -->
+    </ul>
+    
+    <!-- Empty State -->
+    <div id="emptyState" style="display: none; padding: 30px 20px; text-align: center; color: #888; position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%);">
+        <div style="margin: 0 auto 15px auto; opacity: 0.5; width: 48px;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11 14.9861C11 15.5384 11.4477 15.9861 12 15.9861C12.5523 15.9861 13 15.5384 13 14.9861V7.82831L16.2428 11.0711L17.657 9.65685L12.0001 4L6.34326 9.65685L7.75748 11.0711L11 7.82854V14.9861Z" fill="currentColor"/>
+                <path d="M4 14H6V18H18V14H20V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V14Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <h3 style="margin-bottom: 10px; font-size: 1.1em; color: #ccc;">No Files</h3>
+        <p style="margin-bottom: 20px; font-size: 0.9em;">
+            Upload a Zip or drag & drop files here.
+        </p>
+        <button id="firstRunStartBtn" class="btn btn-primary" style="width: auto; padding: 6px 12px; font-size: 0.9em;">Upload Zip</button>
+    </div>
+
+    <div class="sidebar-footer" style="padding: 10px; border-top: 1px solid #333; text-align: center; margin-top: auto;">
+        <div id="vfs-status" style="font-size: 0.8em; color: #888; margin-bottom: 8px; text-align: left;">
+            Storage: <span id="vfs-size">0 KB</span>
+            <div style="background: #333; height: 4px; border-radius: 2px; margin-top: 4px; overflow: hidden;">
+                <div id="vfs-bar" style="background: #2196f3; height: 100%; width: 0%;"></div>
+            </div>
+        </div>
+        <button id="clearCacheBtn" class="btn btn-secondary" style="width: 100%; font-size: 0.8em; background: #333; color: #ccc; border: 1px solid #444;">Clear Cache & Reset</button>
+    </div>
+</aside>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="context-menu">
+    <ul>
+        <li id="ctx-refresh">Refresh</li>
+        <li id="ctx-new-folder">New Folder</li>
+        <li class="separator"></li>
+        <li id="ctx-open">Open</li>
+        <li class="separator"></li>
+        <li id="ctx-copy">Copy</li>
+        <li id="ctx-cut">Cut</li>
+        <li id="ctx-paste">Paste</li>
+        <li class="separator"></li>
+        <li id="ctx-duplicate">Duplicate</li>
+        <li id="ctx-rename">Rename</li>
+        <li id="ctx-delete">Delete</li>
+        <li class="separator"></li>
+        <li id="ctx-download">Download</li>
+    </ul>
+</div>

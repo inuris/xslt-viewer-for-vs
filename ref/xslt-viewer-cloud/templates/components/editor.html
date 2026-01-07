@@ -1,0 +1,43 @@
+<div id="editor-container">
+    <div class="editor-header-wrapper">
+        <div class="editor-tabs-scroll-container">
+            <div class="tab-container" id="tabs-container">
+                <!-- Dynamic Tabs will be inserted here -->
+            </div>
+        </div>
+        <div class="editor-toolbar">
+            <button id="formatBtn" title="Format Document (Shift+Alt+F)">Format</button>
+            <button id="themeToggle" title="Toggle Dark Mode">Theme</button>
+        </div>
+    </div>
+    <div class="editor-breadcrumb" id="editor-breadcrumb">
+        <!-- Full path will be displayed here -->
+    </div>
+    <div id="monaco-editor"></div>
+    <div class="editor-statusbar">
+        <span id="statusbar-message" class="statusbar-item">Ready</span>
+        <div class="statusbar-item right" style="display: flex; align-items: center; gap: 10px;">
+            <select id="indent-select" style="background: transparent; color: inherit; border: none; font-size: inherit; cursor: pointer; outline: none;">
+                <option value="4">Spaces: 4</option>
+                <option value="2">Spaces: 2</option>
+            </select>
+            <span>Ctrl+S to Save</span>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Settings</h3>
+            <span class="close" id="closeSettingsBtn">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Settings are not available in the client-side version.</p>
+        </div>
+        <div class="modal-footer">
+            <button id="saveSettingsBtn" class="btn btn-primary" style="display:none;">Save & Reload</button>
+        </div>
+    </div>
+</div>
