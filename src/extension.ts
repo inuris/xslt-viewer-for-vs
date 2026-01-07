@@ -94,26 +94,21 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(disposablePreview);
     
-    // Register a Tree Data Provider for the "Embedded Images" view
-	const imageProvider = new ImageTreeDataProvider();
-	vscode.window.registerTreeDataProvider('xslt-viewer-images', imageProvider);
-    
-    // Refresh the tree view when the file changes
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => imageProvider.refresh()));
+    // Register the Webview View Provider for the "Embedded Images" sidebar
+	const sidebarProvider = new ImageSidebarProvider(context.extensionUri);
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider('xslt-viewer-images', sidebarProvider)
+	);
+
+    // Refresh the sidebar when the file changes
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(() => sidebarProvider.refresh()));
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(e => {
         if (vscode.window.activeTextEditor && e.document === vscode.window.activeTextEditor.document) {
-            imageProvider.refresh();
-        }
-    }));
-
-    // Command: Reveal Image
-    context.subscriptions.push(vscode.commands.registerCommand('xslt-viewer.revealImage', (range: vscode.Range) => {
-        if (vscode.window.activeTextEditor) {
-            vscode.window.activeTextEditor.selection = new vscode.Selection(range.start, range.end);
-            vscode.window.activeTextEditor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+            sidebarProvider.refresh();
         }
     }));
 }
+
 
 async function pickWorkspaceFile(prompt: string, extensions: string[]): Promise<vscode.TextDocument | undefined> {
     const files = await vscode.workspace.findFiles(`**/*.{${extensions.join(',')}}`, '**/node_modules/**');
@@ -331,65 +326,299 @@ function getWebviewContent(content: string) {
 </html>`;
 }
 
-// Image List View Provider
-class ImageTreeDataProvider implements vscode.TreeDataProvider<ImageItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<ImageItem | undefined | null | void> = new vscode.EventEmitter<ImageItem | undefined | null | void>();
-    readonly onDidChangeTreeData: vscode.Event<ImageItem | undefined | null | void> = this._onDidChangeTreeData.event;
+// Image Sidebar Provider (Webview View)
+class ImageSidebarProvider implements vscode.WebviewViewProvider {
+    private _view?: vscode.WebviewView;
 
-    refresh(): void {
-        this._onDidChangeTreeData.fire();
-    }
+    constructor(private readonly _extensionUri: vscode.Uri) {}
 
-    getTreeItem(element: ImageItem): vscode.TreeItem {
-        return element;
-    }
-
-    getChildren(element?: ImageItem): Thenable<ImageItem[]> {
-        if (element) {
-            return Promise.resolve([]);
-        }
-
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return Promise.resolve([]);
-        }
-
-        const text = editor.document.getText();
-        const regex = /data:image\/(?:png|jpg|jpeg|gif|svg\+xml|webp);base64,[A-Za-z0-9+/=]+/g;
-        const items: ImageItem[] = [];
-
-        let match;
-        while ((match = regex.exec(text)) !== null) {
-            const startPos = editor.document.positionAt(match.index);
-            const endPos = editor.document.positionAt(match.index + match[0].length);
-            const range = new vscode.Range(startPos, endPos);
-            
-            // Create a short label like "Image (png) - Line 10"
-            const typeMatch = match[0].match(/image\/([a-z+]+);/);
-            const imgType = typeMatch ? typeMatch[1] : 'unknown';
-            const label = `Image (${imgType}) - Line ${startPos.line + 1}`;
-            
-            items.push(new ImageItem(label, range, vscode.TreeItemCollapsibleState.None));
-        }
-
-        return Promise.resolve(items);
-    }
-}
-
-class ImageItem extends vscode.TreeItem {
-    constructor(
-        public readonly label: string,
-        public readonly range: vscode.Range,
-        public readonly collapsibleState: vscode.TreeItemCollapsibleState
+    public resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken,
     ) {
-        super(label, collapsibleState);
-        this.tooltip = `Click to reveal ${label}`;
-        this.description = `Len: ${range.end.character - range.start.character}`;
-        
-        this.command = {
-            command: 'xslt-viewer.revealImage',
-            title: 'Reveal Image',
-            arguments: [range]
+        this._view = webviewView;
+
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri]
         };
+
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+            switch (data.type) {
+                case 'ready': {
+                    this.refresh();
+                    break;
+                }
+                case 'jump': {
+                    if (vscode.window.activeTextEditor) {
+                        const range = new vscode.Range(
+                            data.range.startLine, data.range.startChar, 
+                            data.range.endLine, data.range.endChar
+                        );
+                        vscode.window.activeTextEditor.selection = new vscode.Selection(range.start, range.end);
+                        vscode.window.activeTextEditor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+                    }
+                    break;
+                }
+                case 'download': {
+                     this.handleDownload(data.base64, data.mime);
+                     break;
+                }
+                case 'replace': {
+                     this.handleReplace(data.range);
+                     break;
+                }
+            }
+        });
+
+        // Initial load
+        this.refresh();
+    }
+
+    public refresh() {
+        console.log('Refreshing Image List...');
+        if (this._view) {
+            let editor = vscode.window.activeTextEditor;
+            // Fallback: If no active editor (e.g. focus is on sidebar), try to find the first visible text editor
+            if (!editor && vscode.window.visibleTextEditors.length > 0) {
+                editor = vscode.window.visibleTextEditors[0];
+            }
+
+            if (!editor) {
+                console.log('No active editor found.');
+                this._view.webview.postMessage({ type: 'update', images: [] });
+                return;
+            }
+
+            const text = editor.document.getText();
+            console.log(`Scanning document: ${editor.document.fileName} (${text.length} chars)`);
+
+            // Regex for Base64 Images
+            // 1. Matches standard src="data:..." (terminates at " or ')
+            // 2. Matches css url('data:...') (terminates at ')
+            // 3. Matches css url(data:...) (terminates at ))
+            // We use a set of terminators: " ' ) \s
+            const regex = /data:image\/(?:png|jpg|jpeg|gif|svg\+xml|webp);base64,([^"'\)\s]+)/g;
+            
+            const images = [];
+            let match;
+            
+            try {
+                while ((match = regex.exec(text)) !== null) {
+                    const fullMatch = match[0];
+                    const base64Content = match[1];
+                    const cleanBase64 = base64Content.replace(/\s/g, ''); // Should already be clean due to regex but just in case
+                    
+                    const startPos = editor.document.positionAt(match.index);
+                    const endPos = editor.document.positionAt(match.index + fullMatch.length);
+                    
+                    // Extract mime type
+                    const mimeMatch = fullMatch.match(/data:(image\/[a-z+]+);/);
+                    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+                    
+                    images.push({
+                        fullMatch: fullMatch, 
+                        mime: mime,
+                        base64: cleanBase64, 
+                        line: startPos.line + 1,
+                        size: (cleanBase64.length / 1024).toFixed(1) + ' KB',
+                        range: {
+                            startLine: startPos.line,
+                            startChar: startPos.character,
+                            endLine: endPos.line,
+                            endChar: endPos.character
+                        }
+                    });
+                }
+                console.log(`Found ${images.length} images.`);
+                this._view.webview.postMessage({ type: 'update', images: images });
+            } catch (error) {
+                console.error('Error scanning for images:', error);
+            }
+        }
+    }
+
+    private async handleDownload(base64Data: string, mime: string) {
+        const extension = mime.split('/')[1].replace('svg+xml', 'svg');
+        const uri = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(`image.${extension}`),
+            filters: { 'Images': [extension, 'png', 'jpg', 'svg'] }
+        });
+
+        if (uri) {
+            try {
+                const buffer = Buffer.from(base64Data, 'base64');
+                await vscode.workspace.fs.writeFile(uri, new Uint8Array(buffer));
+                vscode.window.showInformationMessage('Image saved successfully!');
+            } catch (e: any) {
+                vscode.window.showErrorMessage('Failed to save image: ' + e.message);
+            }
+        }
+    }
+
+    private async handleReplace(rangeObj: any) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) return;
+
+        const uris = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            openLabel: 'Select Image to Encode',
+            filters: { 'Images': ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] }
+        });
+
+        if (uris && uris[0]) {
+             try {
+                 const fileData = await vscode.workspace.fs.readFile(uris[0]);
+                 const b64 = Buffer.from(fileData).toString('base64');
+                 
+                 // Determine mime type from extension
+                 const fname = uris[0].fsPath.toLowerCase();
+                 let mime = 'image/png';
+                 if (fname.endsWith('.jpg') || fname.endsWith('.jpeg')) mime = 'image/jpeg';
+                 if (fname.endsWith('.gif')) mime = 'image/gif';
+                 if (fname.endsWith('.svg')) mime = 'image/svg+xml';
+                 if (fname.endsWith('.webp')) mime = 'image/webp';
+
+                 const newString = `data:${mime};base64,${b64}`;
+                 
+                 const range = new vscode.Range(
+                     rangeObj.startLine, rangeObj.startChar,
+                     rangeObj.endLine, rangeObj.endChar
+                 );
+                 
+                 await editor.edit(editBuilder => {
+                     editBuilder.replace(range, newString);
+                 });
+                 vscode.window.showInformationMessage('Image replaced successfully!');
+                 // No need to manually refresh, the event listener will trigger onDidChangeTextDocument
+             } catch (e: any) {
+                 vscode.window.showErrorMessage('Error processing file: ' + e.message);
+             }
+        }
+    }
+
+    private _getHtmlForWebview(webview: vscode.Webview) {
+        return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body { font-family: var(--vscode-font-family); padding: 10px; color: var(--vscode-foreground); }
+                .image-item {
+                    display: flex;
+                    align-items: center;
+                    background: var(--vscode-sideBar-background);
+                    border: 1px solid var(--vscode-widget-border);
+                    margin-bottom: 8px;
+                    padding: 5px;
+                    border-radius: 4px;
+                }
+                .thumb {
+                    width: 50px;
+                    height: 50px;
+                    object-fit: contain;
+                    background: #333; /* Checkerboard substitute */
+                    margin-right: 10px;
+                    cursor: pointer;
+                    border: 1px solid #444;
+                }
+                .info {
+                    flex: 1;
+                    overflow: hidden;
+                    font-size: 11px;
+                }
+                .info div {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    margin-bottom: 2px;
+                }
+                .actions {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                button {
+                    background: var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
+                    border: none;
+                    cursor: pointer;
+                    padding: 2px 6px;
+                    font-size: 10px;
+                    border-radius: 2px;
+                }
+                button:hover {
+                    background: var(--vscode-button-secondaryHoverBackground);
+                }
+                .btn-icon { font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div id="image-list">Scanning...</div>
+            <script>
+                const vscode = acquireVsCodeApi();
+                const list = document.getElementById('image-list');
+
+                // Notify extension we are ready
+                vscode.postMessage({ type: 'ready' });
+
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    switch (message.type) {
+                        case 'update':
+                            render(message.images);
+                            break;
+                    }
+                });
+
+                function render(images) {
+                    if (images.length === 0) {
+                        list.innerHTML = '<p>No embedded images found.</p>';
+                        return;
+                    }
+                    
+                    list.innerHTML = images.map((img, index) => {
+                         // We use the full match (data uri) for the thumbnail
+                         return \`
+                         <div class="image-item">
+                            <img class="thumb" src="\${img.fullMatch}" onclick="jump(\${index})" title="Jump to Line \${img.line}" />
+                            <div class="info">
+                                <div><strong>Line \${img.line}</strong></div>
+                                <div>\${img.mime.replace('image/', '')}</div>
+                                <div>\${img.size}</div>
+                            </div>
+                            <div class="actions">
+                                <button onclick="download(\${index})" title="Download">⬇ Save</button>
+                                <button onclick="replace(\${index})" title="Replace">✎ Edit</button>
+                            </div>
+                         </div>
+                         \`;
+                    }).join('');
+                    
+                    // Store images for actions
+                    window.currentImages = images;
+                }
+
+                function jump(index) {
+                    const img = window.currentImages[index];
+                    vscode.postMessage({ type: 'jump', range: img.range });
+                }
+                
+                function download(index) {
+                    const img = window.currentImages[index];
+                    vscode.postMessage({ type: 'download', base64: img.base64, mime: img.mime });
+                }
+                
+                function replace(index) {
+                     const img = window.currentImages[index];
+                     vscode.postMessage({ type: 'replace', range: img.range });
+                }
+            </script>
+        </body>
+        </html>`;
     }
 }
