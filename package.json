@@ -18,10 +18,7 @@
         "title": "XSLT: Preview Transformation",
         "icon": "$(preview)"
       },
-      {
-        "command": "xslt-viewer.revealImage",
-        "title": "Reveal Image source"
-      },
+
       {
         "command": "xslt-viewer.switchFile",
         "title": "Switch to Linked XML/XSLT",
@@ -33,24 +30,8 @@
         "icon": "$(file-pdf)"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "xslt-viewer-sidebar",
-          "title": "XSLT Viewer",
-          "icon": "$(file-media)"
-        }
-      ]
-    },
-    "views": {
-      "xslt-viewer-sidebar": [
-        {
-          "type": "webview",
-          "id": "xslt-viewer-images",
-          "name": "Embedded Images"
-        }
-      ]
-    },
+
+
     "configuration": {
       "title": "XSLT Viewer",
       "properties": {
