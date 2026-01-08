@@ -323,7 +323,11 @@ function findAndJump(doc: vscode.TextDocument, info: any) {
 function runPythonTransformation(context: vscode.ExtensionContext, xml: string, xslt: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const scriptPath = context.asAbsolutePath(path.join('src', 'python', 'transform.py'));
-        const pythonPath = 'python'; // Assume python is in PATH. Ideally, use Python extension API to get interpreter.
+        
+        // Get URI of the python script to scope configuration correctly? 
+        // Or just use global/workspace config. Workspace config is better.
+        const config = vscode.workspace.getConfiguration('xslt-viewer');
+        const pythonPath = config.get<string>('pythonPath') || 'python';
 
         const process = cp.spawn(pythonPath, [scriptPath]);
         
@@ -335,7 +339,9 @@ function runPythonTransformation(context: vscode.ExtensionContext, xml: string, 
 
         process.on('close', (code) => {
             if (code !== 0) {
-                reject(new Error(`Python script failed: ${stderr}`));
+                // Enhance error message with details
+                const msg = stderr || stdout || 'Unknown error';
+                reject(new Error(`Python script failed (using '${pythonPath}'): ${msg}`));
             } else {
                 resolve(stdout);
             }

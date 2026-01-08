@@ -5,8 +5,8 @@ import os
 try:
     from lxml import etree
 except ImportError:
-    sys.stderr.write("Error: lxml is not installed in your Python environment.\n")
-    sys.stderr.write("Please run: pip install lxml\n")
+    sys.stderr.write(f"Error: lxml is not installed in the current Python environment: {sys.executable}\n")
+    sys.stderr.write("Please run: pip install lxml (or configure 'xslt-viewer.pythonPath' in VS Code settings)\n")
     sys.exit(1)
 
 def transform():

@@ -46,6 +46,16 @@
         }
       ]
     },
+    "configuration": {
+      "title": "XSLT Viewer",
+      "properties": {
+        "xslt-viewer.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to the Python interpreter (must have lxml installed)."
+        }
+      }
+    },
     "menus": {
       "editor/title": [
         {
