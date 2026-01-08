@@ -2,113 +2,80 @@
 > **IMPORTANT:** This file serves as the **Index Database** for the codebase.
 > **PROTOCOL:** When modifying features or adding new ones, **YOU MUST UPDATE THIS FILE** to reflect changes in workflows, function responsibilities, or file locations.
 
-**Project:** XSLT Viewer Cloud (Client-Side)
-**Type:** Web-based IDE for XML/XSLT
-**Tech Stack:** Vanilla JS (ES Modules), Monaco Editor, VFS (In-Memory/LocalStorage).
+**Project:** XSLT Viewer for VS Code
+**Type:** VS Code Extension
+**Tech Stack:** TypeScript (Extension), Python (lxml backend), HTML/CSS (Webviews).
 
 ## 1. Codebase Index & Navigation
 
-### A. Explorer Pane (Sidebar)
-**File:** `static/js/modules/explorer.js`
-**Object:** `FileExplorer` (Singleton)
+### A. Extension Entry & Logic
+**File:** `src/extension.ts`
+**Description:** The core controller for the extension.
+- **`activate()`**: Registers commands, views, and event listeners.
+- **`activeXml` / `activeXslt`**: Tracks the currently "paired" files for transformation.
+- **`runUpdate()`**: Orchestrates the transformation steps.
+- **`instrumentXslt()`**: Injects `data-source-line` attributes into XSLT for click-to-jump navigation.
+- **`ImageSidebarProvider`**: Manages the "Embedded Images" sidebar view (webview-based).
 
-| Function / Method | Description | Dependencies |
-| :--- | :--- | :--- |
-| `init()` | Initializes event listeners, context menu, and initial load. | `vfs.js`, `editor.js` |
-| `loadDirectory(path)` | Loads files for the given path into `this.files` and calls `render()`. | `vfs.listFiles()` |
-| `render()` | Generates the HTML `<li>` elements for the file list. | DOM |
-| `revealFile(path)` | Navigate to directory, scroll into view, and **select** the file. | `loadDirectory` |
-| `handleItemClick(e)` | Handles single clicks (select) and double clicks (open). | `openSelected()` |
-| `openSelected()` | Opens the currently selected file in the Editor. | `editor.openFile()` |
-| `deleteSelected()` | Deletes the selected file/folder. | `vfs.deleteFile()` |
-| `renameSelected()` | Triggers inline rename input. | `vfs.renameFile()` |
-| `handleContextMenu(e)` | Shows the custom right-click menu. | `templates/components/sidebar.html` |
-| `initZipUpload()` | Handles Zip file drag-and-drop and input change. | `vfs.loadZip()` |
+### B. Transformation Backend
+**File:** `src/python/transform.py`
+**Description:** A standalone Python script acting as the transformation engine.
+- **Dependencies:** `lxml` (Required).
+- **IO:** Reads JSON `{ xmlContent, xsltContent }` from `stdin`, writes raw bytes to `stdout`.
+- **Logic:**
+    - Parses XML and XSLT using `lxml`.
+    - Patches `msxsl:node-set` to `exsl:node-set` for compatibility.
+    - Handles encoding/decoding to avoid UTF-8 issues.
+    - Returns the rendered result or exits with error code 1.
 
-### B. Editor Pane (Main Area)
-**File:** `static/js/modules/editor.js`
-**Module Scope:** Manages `monaco` instance and `tabs` array.
-
-| Function / Method | Description | Dependencies |
-| :--- | :--- | :--- |
-| `initEditor()` | Loads Monaco AMD loader, configures themes, keybindings (Ctrl+S). | `monaco-editor` |
-| `openFile(path)` | Creates/activates a tab for the given path. Loads content from VFS. | `vfs.readFile()` |
-| `activateTab(id)` | Switches the active editor view to the specified tab. Sycs with Explorer. | `explorer.revealFile()` |
-| `saveCurrentFile()` | Writes editor content to VFS and triggers LZ-String compression. | `vfs.saveFile()` |
-| `renderTabs()` | Re-renders the tab strip HTML based on the `tabs` state. | DOM |
-| `checkForLinkedXslt(tab)` | Auto-detects `<?xml-stylesheet ...?>` to enable Split View. | `xml-stylesheet` PI |
-| `closeTab(id)` | Closes a tab. Prompts if unsaved changes exist. | `modals.html` |
-
-### C. Preview Pane (Right/Bottom Panel)
-**File:** `static/js/modules/preview.js`
-**Functionality:** Handles Rendering and IFrame.
-
-| Function / Method | Description | Dependencies |
-| :--- | :--- | :--- |
-| `initPreview()` | Sets up zoom controls, print button, and IFrame listeners. | `index.html` |
-| `renderClientSide(...)` | Main entry point. Decides between SSR or CSR (Fallbacks). | `XSLTProcessor` |
-| `preprocessXslt(...)` | **Critical:** Patches `msxsl:node-set` to `exsl:node-set` and inlines imports. | `vfs.readFile` |
-| `resolvePath(base, rel)`| Resolves relative paths (e.g., `../style.xsl`) for imports. | String manipulation |
-
-### D. File System (Buffer)
-**File:** `static/js/modules/vfs.js`
-**Object:** `vfs` (Singleton)
-
-| Function / Method | Description | Storage Key |
-| :--- | :--- | :--- |
-| `saveFile(path, content)`| Compresses (LZ-String) and saves content to LocalStorage. | `vfs_data` |
-| `readFile(path)` | Decompresses and returns content. | `vfs_data` |
-| `loadZip(file)` | Parses Zip file using `JSZip` and populates VFS. | `jszip` library |
-| `getSize()` | Calculates used storage space. | - |
-
-### E. Layout & UI
-**File:** `static/js/modules/layout.js`
-**Functionality:** Resizers, Theme toggles, 2-Col/3-Col switching.
-
-| Function / Method | Description | CSS Vars |
-| :--- | :--- | :--- |
-| `initLayout()` | Binds layout toggle button and restore preferences. | `--sidebar-width` |
-| `mouseDownHandler` | Handles Drag-to-Resize for Sidebar. | `--sidebar-width` |
-| `vResizer` logic | Handles Drag-to-Resize for Preview Pane (Vertical/Horizontal). | `--preview-height/width` |
+### C. Configuration & Setup
+- **`package.json`**:
+    - `xslt-viewer-sidebar`: Defines the sidebar container.
+    - `xslt-viewer.pythonPath`: Configuration setting to specify the Python interpreter (crucial for users with multiple environments).
+- **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
 
 ## 2. Core Workflows
 
-### 1. Rendering Pipeline (Hybrid)
-1. **User Edit:** content changes in `editor.js`.
-2. **Trigger:** `renderClientSide()` called in `preview.js`.
-3. **Normalization:**
-   - XSLT is parsed.
-   - `msxsl` namespaces patched to `exslt`.
-   - Imports/Includes are recursively fetched from VFS and inlined (Blob URLs).
-4. **Execution:**
-   - **Attempt 1 (Server):** POST to `/api/render` (Python `lxml`).
-   - **Fallback (Client):** If Server fails (500/404), use browser `XSLTProcessor`.
-5. **Output:** HTML injected into `<iframe>`.
+### 1. Rendering Pipeline (IPC)
+1. **Trigger:** `runUpdate()` calls `runPythonTransformation()`.
+2. **Instrumentation:** XSLT source is passed through `instrumentXslt()` (in TS) to add line mapping attributes.
+3. **Execution:**
+   - Spawns a child process: `[pythonPath] src/python/transform.py`.
+   - Sends JSON payload via `stdin`.
+4. **Output:** 
+   - Receives HTML via `stdout`.
+   - Injects HTML into the `currentPanel` Webview via `getWebviewContent()`.
+   - If error (stderr), displays an error page in the Webview via `getWebviewError()`.
 
-### 2. Base64 Optimization Flow
-1. **Load:** `base64_manager.js` detects huge base64 strings.
-2. **Detach:** Replaces string with short ID `__BASE64_IMAGE_...`.
-3. **Edit:** Developer works with clean, short text.
-4. **Save/Render:** `attachBase64()` reintegrates original data before processing.
+### 2. Auto-Detection & Pairing
+The extension attempts to intelligently pair XML and XSLT files:
+- **From XML:** Checks for `<?xml-stylesheet href="..."?>`.
+- **From XSLT:** Scans open editors for XML files referencing the current stylesheet.
+- **Manual:** `xslt-viewer.switchFile` command allows manual pairing via QuickPick.
 
-### 3. Storage Architecture
-- **Layer 1:** Memory (JS Map). Fast access.
-- **Layer 2:** Navigation Persistence (`localStorage`).
-- **Compression:** All text data compressed via `LZString.compressToUTF16` before storage.
+### 3. "Click-to-Jump" Navigation
+- **Frontend (Webview):** The rendered HTML contains elements with `data-source-line` (injected by `instrumentXslt`).
+- **Interaction:** User clicks an element in the preview.
+- **Message:** Webview sends `{ command: 'jumpToCode', line: ... }` to Extension.
+- **Action:** Extension opens the `activeXslt` document and reveals the specific line.
 
-## 3. Maintenance Memory (Update Protocol)
+### 4. Embedded Image Management (Sidebar)
+- **Frontend:** A Webview View Provider (`ImageSidebarProvider`).
+- **Scanner:** Finds Base64 data URIs in the active document (regex based).
+- **Sidebar View:** Lists images with metadata (size, mime type).
+- **Actions:**
+    - **Jump:** Reveal the image line in the editor.
+    - **Download/Edit:** (Planned/Partially Implemented in Webview script).
+
+## 3. Comparison with Web App (`ref/`)
+This project is a port of the "XSLT Viewer Cloud" (Web App).
+- **Storage:** Removed Custom VFS. Uses VS Code's native file system.
+- **Editor:** Removed Custom Monaco setup. Uses VS Code's native editor.
+- **Backend:** Retained the Python `lxml` logic, but moved from a Flask/HTTP server to a direct CLI script interface (`transform.py`).
+- **Webview:** Replaces the IFrame preview. The instrumentation logic was ported from `preview.js` to `extension.ts`.
+
+## 4. Maintenance Memory (Update Protocol)
 **When to update this file:**
-1. **New Modules:** If a new JS module is created in `static/js/modules/`.
-2. **Refactoring:** If a core function (like `renderClientSide` or `loadDirectory`) is renamed or moved.
-3. **New UI Panes:** If a new panel (e.g., "Console" or "Debugger") is added.
-4. **Workflow Changes:** If the rendering pipeline or storage logic changes.
-
-## 4. Development Rules (Vibing-Code)
-1. **No Build Step:** Keep it simple. Use native ES Modules (`import ... from ...`).
-2. **State:** `editor.js` is the source of truth for open tabs.
-3. **Styling:** `static/css/` contains component-specific CSS. Dark/Light mode supported via body class.
-4. **Error Handling:** Fail gracefully in `preview.js` (show error in iframe) rather than crashing the app.
-
-## 5. Future Tasks / Known Limitations
-- **Formatting:** Currently server-side. Move to client-side (`xml-formatter` lib) for full offline capability.
-- **Click-to-Jump:** Syncing Preview scroll/click to Editor line is currently disabled in Client-Side rendering mode (requires source mapping).
+1. **New Commands:** If `package.json` commands change.
+2. **Python Logic:** If `transform.py` logic (e.g., arguments or return format) changes.
+3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
