@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
+import * as os from 'os';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
@@ -101,7 +102,15 @@ export function activate(context: vscode.ExtensionContext) {
                 'xsltPreview',
                 'XSLT Preview',
                 vscode.ViewColumn.Two,
-                { enableScripts: true }
+                { 
+                    enableScripts: true,
+                    // Allow modals (like print dialog) by not restricting sandbox too much.
+                    // Actually, VS Code Webviews are sandboxed naturally.
+                    // We need to try to not use specific sandbox restrictions if possible, 
+                    // but createWebviewPanel options don't have 'sandbox' property directly exposed in basic types sometimes.
+                    // However, we can try to rely on 'enableScripts: true' being enough usually.
+                    // If 'print()' is blocked, we might be in a restricted mode.
+                }
             );
             currentPanel.onDidDispose(() => { currentPanel = undefined; }, null, context.subscriptions);
         }
@@ -249,6 +258,37 @@ export function activate(context: vscode.ExtensionContext) {
             
             vscode.window.showInformationMessage('Could not find a linked XML file in open editors.');
         }
+    }));
+
+    // Command: Export PDF (Updated to Open in Browser)
+    context.subscriptions.push(vscode.commands.registerCommand('xslt-viewer.exportPdf', async () => {
+         if (!activeXml || !activeXslt) {
+             vscode.window.showErrorMessage('No active XSLT transformation to export.');
+             return;
+         }
+
+         try {
+             // 1. Generate clean HTML
+             const resultHtml = await runPythonTransformation(context, activeXml.getText(), activeXslt.getText());
+             
+             // 2. Save to temp file
+             // We use a specific name pattern locally so the browser can find it easily
+             const tempDir = os.tmpdir();
+             const tempFile = path.join(tempDir, `xslt_preview_${Date.now()}.html`);
+             
+             // Note: We need to import 'fs' and 'os'
+             const fs = require('fs');
+             fs.writeFileSync(tempFile, resultHtml, 'utf-8');
+
+             // 3. Open in System Browser
+             const uri = vscode.Uri.file(tempFile);
+             await vscode.env.openExternal(uri);
+             
+             vscode.window.showInformationMessage('Preview opened in browser. Press Ctrl+P to save as PDF.');
+
+         } catch (e: any) {
+             vscode.window.showErrorMessage('Failed to export: ' + e.message);
+         }
     }));
 }
 
@@ -470,6 +510,19 @@ function getWebviewContent(content: string) {
                 });
             }
         }, true);
+
+        // Listen for print command
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.command === 'print') {
+                console.log('Received print command');
+                // Ensure focus before printing
+                window.focus();
+                setTimeout(() => {
+                    window.print();
+                }, 100);
+            }
+        });
     </script>
 </body>
 </html>`;
@@ -522,6 +575,11 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'switchFile': {
                      vscode.commands.executeCommand('xslt-viewer.switchFile');
+                     break;
+                }
+                case 'exportPdf': {
+                     console.log('Received exportPdf message from sidebar');
+                     vscode.commands.executeCommand('xslt-viewer.exportPdf');
                      break;
                 }
             }
@@ -737,6 +795,9 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
                  <button class="btn-switch" onclick="switchFile()">
                     <span>↔</span> Switch XML/XSLT
                  </button>
+                 <button class="btn-switch" style="margin-top: 5px;" onclick="exportPdf()">
+                    <span>📄</span> Export Preview to PDF
+                 </button>
             </div>
             <div id="image-list">Scanning...</div>
             <script>
@@ -757,6 +818,10 @@ class ImageSidebarProvider implements vscode.WebviewViewProvider {
 
                 function switchFile() {
                     vscode.postMessage({ type: 'switchFile' });
+                }
+
+                function exportPdf() {
+                    vscode.postMessage({ type: 'exportPdf' });
                 }
 
                 function render(images) {

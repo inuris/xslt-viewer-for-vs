@@ -26,6 +26,11 @@
         "command": "xslt-viewer.switchFile",
         "title": "Switch to Linked XML/XSLT",
         "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "xslt-viewer.exportPdf",
+        "title": "Export Preview to PDF",
+        "icon": "$(file-pdf)"
       }
     ],
     "viewsContainers": {

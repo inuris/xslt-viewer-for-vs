@@ -66,6 +66,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Actions:**
     - **Jump:** Reveal the image line in the editor.
     - **Download/Edit:** (Planned/Partially Implemented in Webview script).
+    - **Export PDF:** Triggers `xslt-viewer.exportPdf` which opens the rendered HTML in the system browser for printing.
 
 ## 3. Comparison with Web App (`ref/`)
 This project is a port of the "XSLT Viewer Cloud" (Web App).
