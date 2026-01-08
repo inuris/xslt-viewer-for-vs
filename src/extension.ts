@@ -488,7 +488,7 @@ function getWebviewContent(content: string) {
              }
         });
 
-        document.addEventListener('dblclick', (e) => {
+        document.addEventListener('click', (e) => {
             e.stopPropagation();
             const target = e.target.closest('[data-source-line]');
             
