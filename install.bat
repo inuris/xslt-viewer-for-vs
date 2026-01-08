@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
 )
 
 echo Installing Python dependencies...
-pip install lxml
+pip install lxml xhtml2pdf
 if %errorlevel% neq 0 (
     echo Error installing Python dependencies.
     pause
