@@ -80,6 +80,9 @@ export function activate(context: vscode.ExtensionContext) {
                  if (!selectedXslt) {
                     const currentDir = vscode.Uri.file(path.dirname(doc.uri.fsPath));
                     selectedXslt = await pickWorkspaceFile('Select the XSLT stylesheet (Current Folder)', ['xsl', 'xslt'], currentDir);
+                    if (selectedXslt) {
+                        await updateXmlStylesheetLink(selectedXml, selectedXslt);
+                    }
                  }
              }
         } else if (doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl') || doc.fileName.endsWith('.xslt')) {
@@ -561,6 +564,53 @@ function getWebviewShell() {
 </html>`;
 }
 
+async function updateXmlStylesheetLink(xmlDoc: vscode.TextDocument, xsltDoc: vscode.TextDocument) {
+    const xmlPath = xmlDoc.uri.fsPath;
+    const xsltPath = xsltDoc.uri.fsPath;
+    
+    // Calculate relative path (e.g., sibling.xsl or ../folder/sibling.xsl)
+    let relPath = path.relative(path.dirname(xmlPath), xsltPath);
+    relPath = relPath.split(path.sep).join('/'); // Ensure POSIX for XML
+
+    const text = xmlDoc.getText();
+    // Regex matches <?xml-stylesheet ... href='...' ... ?> handling both ' and " and extra attributes
+    const match = text.match(/(<\?xml-stylesheet\s+(?:[^?]*\s+)?href=["'])([^"']*)(["'](?:[^?]*)?\?>)/);
+
+    const edit = new vscode.WorkspaceEdit();
+
+    if (match) {
+        // Replace existing href
+        const startOffset = match.index! + match[1].length;
+        const endOffset = startOffset + match[2].length;
+        const range = new vscode.Range(
+            xmlDoc.positionAt(startOffset),
+            xmlDoc.positionAt(endOffset)
+        );
+        edit.replace(xmlDoc.uri, range, relPath);
+    } else {
+        // Insert new PI
+        // Try to insert after <?xml ... ?> decl or at top
+        const xmlDeclMatch = text.match(/^<\?xml\s+[^?]*\?>\s*/);
+        let insertPos = new vscode.Position(0, 0);
+        
+        if (xmlDeclMatch) {
+            insertPos = xmlDoc.positionAt(xmlDeclMatch[0].length);
+        }
+        
+        // Ensure separation
+        const newPI = `\n<?xml-stylesheet type='text/xsl' href='${relPath}' ?>\n`;
+        edit.insert(xmlDoc.uri, insertPos, newPI);
+    }
+
+    try {
+        await vscode.workspace.applyEdit(edit);
+        await xmlDoc.save(); 
+        vscode.window.setStatusBarMessage(`Linked XSLT updated to: ${relPath}`, 3000);
+    } catch (e) {
+        console.error('Failed to update XML stylesheet link:', e);
+    }
+}
+
 function wrapForIframe(content: string) {
     const script = `
     <script>
@@ -580,10 +630,10 @@ function wrapForIframe(content: string) {
                 window.parent.postMessage({ command: 'jumpToCode', line: line }, '*');
             } else {
                  const t = e.target;
-                 window.parent.postMessage({ 
-                    command: 'jumpToCode', 
-                    tag: t.tagName.toLowerCase(), 
-                    className: t.className, 
+                 window.parent.postMessage({
+                    command: 'jumpToCode',
+                    tag: t.tagName.toLowerCase(),
+                    className: t.className,
                     id: t.id
                  }, '*');
             }
