@@ -78,7 +78,8 @@ export function activate(context: vscode.ExtensionContext) {
                      }
                  }
                  if (!selectedXslt) {
-                    selectedXslt = await pickWorkspaceFile('Select the XSLT stylesheet', ['xsl', 'xslt']);
+                    const currentDir = vscode.Uri.file(path.dirname(doc.uri.fsPath));
+                    selectedXslt = await pickWorkspaceFile('Select the XSLT stylesheet (Current Folder)', ['xsl', 'xslt'], currentDir);
                  }
              }
         } else if (doc.languageId === 'xsl' || doc.fileName.endsWith('.xsl') || doc.fileName.endsWith('.xslt')) {
@@ -275,11 +276,40 @@ function scanImages(docs: (vscode.TextDocument | undefined)[]) {
     return images;
 }
 
-async function pickWorkspaceFile(prompt: string, extensions: string[]): Promise<vscode.TextDocument | undefined> {
-    const files = await vscode.workspace.findFiles(`**/*.{${extensions.join(',')}}`, '**/node_modules/**');
-    if (files.length === 0) return undefined;
-    const result = await vscode.window.showQuickPick(files.map(f => f.fsPath), { placeHolder: prompt });
-    return result ? await vscode.workspace.openTextDocument(vscode.Uri.file(result)) : undefined;
+async function pickWorkspaceFile(prompt: string, extensions: string[], contextFolder?: vscode.Uri): Promise<vscode.TextDocument | undefined> {
+    let files: vscode.Uri[] = [];
+
+    if (contextFolder) {
+        try {
+            const entries = await vscode.workspace.fs.readDirectory(contextFolder);
+            for (const [name, type] of entries) {
+                if (type === vscode.FileType.File) {
+                    const ext = path.extname(name).slice(1).toLowerCase();
+                    if (extensions.includes(ext)) {
+                        files.push(vscode.Uri.joinPath(contextFolder, name));
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    } else {
+        files = await vscode.workspace.findFiles(`**/*.{${extensions.join(',')}}`, '**/node_modules/**');
+    }
+
+    if (files.length === 0) {
+        vscode.window.showErrorMessage(`No .${extensions[0]} files found in ${contextFolder ? 'current folder' : 'workspace'}`);
+        return undefined;
+    }
+
+    const items = files.map(uri => ({
+        label: path.basename(uri.fsPath),
+        description: vscode.workspace.asRelativePath(uri),
+        uri: uri
+    }));
+
+    const result = await vscode.window.showQuickPick(items, { placeHolder: prompt });
+    return result ? await vscode.workspace.openTextDocument(result.uri) : undefined;
 }
 
 function findAndJump(doc: vscode.TextDocument, info: any) {
