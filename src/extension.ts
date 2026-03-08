@@ -7,6 +7,7 @@ import { scanImages, handleSaveImage, applyReplaceImage, handleJumpToImage, type
 import { pickWorkspaceFile, updateXmlStylesheetLink } from './filePicker';
 import { findAndJump } from './navigation';
 import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wrapForIframe } from './webview';
+import { formatXml } from './formatter';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
@@ -400,5 +401,20 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('Failed to export: ' + msg);
             }
         })
+    );
+
+    // Simple XML/XSLT formatter: indent tags, preserve all text (including spaces) unchanged
+    const formatter = (document: vscode.TextDocument) => {
+        const size = vscode.workspace.getConfiguration('xslt-viewer').get<number>('formatIndentSize') ?? 4;
+        const formatted = formatXml(document.getText(), size);
+        const lastLine = document.lineAt(document.lineCount - 1);
+        const fullRange = new vscode.Range(0, 0, document.lineCount - 1, lastLine.text.length);
+        return [vscode.TextEdit.replace(fullRange, formatted)];
+    };
+    context.subscriptions.push(
+        vscode.languages.registerDocumentFormattingEditProvider(
+            [{ language: 'xml' }, { language: 'xsl' }],
+            { provideDocumentFormattingEdits: formatter }
+        )
     );
 }

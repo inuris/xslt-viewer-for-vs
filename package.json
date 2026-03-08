@@ -39,6 +39,11 @@
           "type": "string",
           "default": "python",
           "description": "Path to the Python interpreter (must have lxml installed)."
+        },
+        "xslt-viewer.formatIndentSize": {
+          "type": "number",
+          "default": 4,
+          "description": "Number of spaces for indentation when formatting XML/XSLT."
         }
       }
     },
