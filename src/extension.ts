@@ -148,9 +148,32 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         runUpdate();
+
+        // Focus left pane so Explorer file clicks open there; keep preview pane with only the preview tab
+        const docToFocus = activeXml ?? activeXslt;
+        if (docToFocus) {
+            vscode.window.showTextDocument(docToFocus, {
+                viewColumn: vscode.ViewColumn.One,
+                preserveFocus: false,
+            });
+        }
     });
 
     context.subscriptions.push(disposablePreview);
+
+    // Keep preview pane (right) for preview only: move any text editor tab that appears there to the left
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (!currentPanel || !currentPanel.visible || !editor) return;
+            const group = vscode.window.tabGroups.activeTabGroup;
+            if (group.viewColumn !== vscode.ViewColumn.Two) return;
+            // A text editor became active in the right pane; move it to the left
+            vscode.window.showTextDocument(editor.document, {
+                viewColumn: vscode.ViewColumn.One,
+                preserveFocus: false,
+            });
+        })
+    );
 
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(async editor => {
