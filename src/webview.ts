@@ -27,6 +27,23 @@ export function getWebviewShell(): string {
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+        #path-bar {
+            gap: 10px;
+        }
+        #path-text { flex: 1; min-width: 0; }
+        .path-bar-btn {
+            flex-shrink: 0;
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-button-border);
+            border-radius: 3px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .path-bar-btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
         
         #toolbar {
             height: 36px;
@@ -131,11 +148,9 @@ export function getWebviewShell(): string {
 <body>
     <div id="path-bar" title="Preview source (relative path)">
         <span id="path-text">—</span>
+        <button type="button" id="switch-file-btn" class="path-bar-btn" title="Switch to XSLT or XML" onclick="post('switchFile')">XSLT</button>
     </div>
     <div id="toolbar">
-        <button class="btn" onclick="post('switchFile')">
-            <span>⟳ Switch File</span>
-        </button>
         <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
         <div style="flex:1"></div>
         <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
@@ -190,6 +205,12 @@ export function getWebviewShell(): string {
                applyZoom();
                const pathEl = document.getElementById('path-text');
                if (pathEl) pathEl.textContent = msg.relativePath || msg.filename || '—';
+               const switchBtn = document.getElementById('switch-file-btn');
+               if (switchBtn && msg.switchButtonLabel) switchBtn.textContent = msg.switchButtonLabel;
+            }
+            if (msg.command === 'setSwitchLabel' && msg.label) {
+               const switchBtn = document.getElementById('switch-file-btn');
+               if (switchBtn) switchBtn.textContent = msg.label;
             }
         });
         

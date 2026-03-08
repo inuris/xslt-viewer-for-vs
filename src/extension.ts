@@ -48,6 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
             images,
             filename: path.basename(activeXml.fileName),
             relativePath: vscode.workspace.asRelativePath(activeXml.uri),
+            switchButtonLabel: lastSwitchedTo === 'xml' ? 'XSLT' : 'XML',
         });
     };
 
@@ -241,6 +242,12 @@ export function activate(context: vscode.ExtensionContext) {
                     await vscode.window.showTextDocument(activeXslt, { viewColumn: vscode.ViewColumn.One });
                     lastSwitchedTo = 'xslt';
                 }
+            }
+            if (currentPanel?.visible) {
+                currentPanel.webview.postMessage({
+                    command: 'setSwitchLabel',
+                    label: lastSwitchedTo === 'xml' ? 'XSLT' : 'XML',
+                });
             }
         })
     );
