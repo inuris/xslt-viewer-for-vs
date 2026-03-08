@@ -278,14 +278,30 @@ export function getWebviewShell(): string {
 export function wrapForIframe(content: string): string {
     const script = `
     <script>
-        document.addEventListener('mouseover', (e) => {
-             const t = e.target.closest('[data-source-line]');
-             if(t) t.style.outline = '2px solid orange';
-        });
-        document.addEventListener('mouseout', (e) => {
-             const t = e.target.closest('[data-source-line]');
-             if(t) t.style.outline = '';
-        });
+        (function() {
+            var hoveredEl = null, hoveredParent = null;
+            function clearHover() {
+                if (hoveredEl) { hoveredEl.style.outline = ''; hoveredEl = null; }
+                if (hoveredParent) { hoveredParent.style.outline = ''; hoveredParent = null; }
+            }
+            document.addEventListener('mouseover', (e) => {
+                var t = e.target.closest('[data-source-line]');
+                if (!t) return;
+                var parentWithLine = t.parentElement ? t.parentElement.closest('[data-source-line]') : null;
+                clearHover();
+                hoveredEl = t;
+                hoveredParent = parentWithLine;
+                t.style.outline = '2px solid orange';
+                if (parentWithLine) parentWithLine.style.outline = '2px dashed rgba(255,165,0,0.45)';
+            });
+            document.addEventListener('mouseout', (e) => {
+                var t = e.target.closest('[data-source-line]');
+                if (!t) return;
+                var parentWithLine = t.parentElement ? t.parentElement.closest('[data-source-line]') : null;
+                if (e.relatedTarget && (t.contains(e.relatedTarget) || (parentWithLine && parentWithLine.contains(e.relatedTarget)))) return;
+                clearHover();
+            });
+        })();
         document.addEventListener('click', (e) => {
             e.stopPropagation();
             const target = e.target.closest('[data-source-line]');
