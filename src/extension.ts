@@ -45,6 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
             html: wrappedHtml,
             images,
             filename: path.basename(activeXml.fileName),
+            relativePath: vscode.workspace.asRelativePath(activeXml.uri),
         });
     };
 
@@ -172,6 +173,25 @@ export function activate(context: vscode.ExtensionContext) {
                 viewColumn: vscode.ViewColumn.One,
                 preserveFocus: false,
             });
+        })
+    );
+
+    // Lock preview pane: whenever the right pane (preview) becomes active, refocus the left so new tabs always open on the left
+    context.subscriptions.push(
+        vscode.window.tabGroups.onDidChangeTabGroups(() => {
+            if (!currentPanel || !currentPanel.visible) return;
+            if (vscode.window.tabGroups.activeTabGroup.viewColumn !== vscode.ViewColumn.Two) return;
+            const docToFocus = activeXml ?? activeXslt;
+            if (!docToFocus) return;
+            // Small delay so a click in the webview (e.g. Zoom) is processed before we refocus
+            setTimeout(() => {
+                if (!currentPanel?.visible) return;
+                if (vscode.window.tabGroups.activeTabGroup.viewColumn !== vscode.ViewColumn.Two) return;
+                vscode.window.showTextDocument(docToFocus, {
+                    viewColumn: vscode.ViewColumn.One,
+                    preserveFocus: false,
+                });
+            }, 80);
         })
     );
 

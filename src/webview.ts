@@ -10,6 +10,24 @@ export function getWebviewShell(): string {
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: var(--vscode-font-family); background-color: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
         
+        #path-bar {
+            height: 22px;
+            min-height: 22px;
+            background-color: var(--vscode-sideBar-background);
+            border-bottom: 1px solid var(--vscode-widget-border);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            color: var(--vscode-descriptionForeground);
+            overflow: hidden;
+        }
+        #path-bar span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
         #toolbar {
             height: 36px;
             background-color: var(--vscode-editor-background);
@@ -111,6 +129,9 @@ export function getWebviewShell(): string {
     </style>
 </head>
 <body>
+    <div id="path-bar" title="Preview source (relative path)">
+        <span id="path-text">—</span>
+    </div>
     <div id="toolbar">
         <button class="btn" onclick="post('switchFile')">
             <span>⟳ Switch File</span>
@@ -167,6 +188,8 @@ export function getWebviewShell(): string {
                frame.srcdoc = msg.html;
                renderImages(msg.images);
                applyZoom();
+               const pathEl = document.getElementById('path-text');
+               if (pathEl) pathEl.textContent = msg.relativePath || msg.filename || '—';
             }
         });
         
