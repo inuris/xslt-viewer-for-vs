@@ -275,10 +275,12 @@ export function getWebviewShell(): string {
 
 /**
  * HTML for the Replace Image dialog (Upload / Paste Base64 + Width x Height + Maintain ratio).
+ * @param nonce Optional value to force webview reload when opening for a different image (e.g. Date.now()).
  */
-export function getReplaceImagePanelHtml(): string {
+export function getReplaceImagePanelHtml(nonce?: number): string {
     return `<!DOCTYPE html>
 <html lang="en">
+<!-- ${nonce ?? ''} -->
 <head>
     <meta charset="UTF-8">
     <style>
@@ -333,18 +335,17 @@ export function getReplaceImagePanelHtml(): string {
     </div>
     <script>
         const vscode = acquireVsCodeApi();
-        let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1 };
+        let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1, originalImageW: 0, originalImageH: 0 };
 
         window.addEventListener('message', function(e) {
             const msg = e.data;
             if (msg.command === 'init') {
                 state.range = msg.range;
                 state.currentDataUri = msg.currentImageDataUri || null;
-                if (state.currentDataUri) loadImageAndFillDims(state.currentDataUri);
+                if (state.currentDataUri) loadOldImageAndFillDims(state.currentDataUri);
             }
             if (msg.command === 'replaceImageFileData') {
-                state.newDataUri = msg.dataUri;
-                loadImageAndFillDims(msg.dataUri);
+                setNewImageOnly(msg.dataUri);
             }
         });
         vscode.postMessage({ command: 'replaceImageReady' });
@@ -356,28 +357,59 @@ export function getReplaceImagePanelHtml(): string {
             return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
         }
 
-        function loadImageAndFillDims(dataUri) {
+        function loadOldImageAndFillDims(dataUri) {
             const img = new Image();
             img.onload = function() {
                 state.origW = img.naturalWidth;
                 state.origH = img.naturalHeight;
                 state.ratio = state.origW / state.origH;
+                state.originalImageW = img.naturalWidth;
+                state.originalImageH = img.naturalHeight;
                 state.newDataUri = dataUri;
                 document.getElementById('dims-section').classList.remove('hidden');
-                const w = document.getElementById('width-px');
-                const h = document.getElementById('height-px');
-                w.value = state.origW;
-                h.value = state.origH;
+                document.getElementById('width-px').value = state.origW;
+                document.getElementById('height-px').value = state.origH;
                 updateDimsInfo();
             };
             img.onerror = function() { state.newDataUri = null; };
             img.src = dataUri;
         }
 
+        function setNewImageOnly(dataUri) {
+            state.newDataUri = dataUri;
+            document.getElementById('dims-section').classList.remove('hidden');
+            const img = new Image();
+            img.onload = function() {
+                state.originalImageW = img.naturalWidth;
+                state.originalImageH = img.naturalHeight;
+                state.ratio = state.originalImageW / state.originalImageH;
+                if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
+                else updateDimsInfo();
+            };
+            img.onerror = function() { state.originalImageW = 0; state.originalImageH = 0; updateDimsInfo(); };
+            img.src = dataUri;
+        }
+
         function updateDimsInfo() {
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
-            document.getElementById('dims-info').textContent = 'Original: ' + state.origW + '×' + state.origH + ' | New: ' + w + '×' + h;
+            const origStr = (state.originalImageW && state.originalImageH) ? (state.originalImageW + '×' + state.originalImageH) : '—';
+            document.getElementById('dims-info').textContent = 'Original: ' + origStr + ' | New: ' + w + '×' + h;
+        }
+
+        function applyFitDimensions() {
+            if (!state.originalImageW || !state.originalImageH) return;
+            const maxW = parseInt(document.getElementById('width-px').value, 10) || 0;
+            const maxH = parseInt(document.getElementById('height-px').value, 10) || 0;
+            if (maxW <= 0 || maxH <= 0) return;
+            var scaleW = maxW / state.originalImageW;
+            var scaleH = maxH / state.originalImageH;
+            var scale = Math.min(scaleW, scaleH);
+            var newW = Math.round(state.originalImageW * scale);
+            var newH = Math.round(state.originalImageH * scale);
+            document.getElementById('width-px').value = newW;
+            document.getElementById('height-px').value = newH;
+            updateDimsInfo();
         }
 
         document.getElementById('btn-upload').onclick = function() {
@@ -386,24 +418,21 @@ export function getReplaceImagePanelHtml(): string {
 
         document.getElementById('paste-base64').oninput = function() {
             const dataUri = parseImageInput(this.value);
-            if (dataUri) loadImageAndFillDims(dataUri);
+            if (dataUri) setNewImageOnly(dataUri);
         };
 
         document.getElementById('width-px').oninput = function() {
-            if (document.getElementById('maintain-ratio').checked) {
-                const w = parseInt(this.value, 10);
-                if (!isNaN(w) && w > 0) document.getElementById('height-px').value = Math.round(w / state.ratio);
-            }
-            updateDimsInfo();
+            if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
+            else updateDimsInfo();
         };
         document.getElementById('height-px').oninput = function() {
-            if (document.getElementById('maintain-ratio').checked) {
-                const h = parseInt(this.value, 10);
-                if (!isNaN(h) && h > 0) document.getElementById('width-px').value = Math.round(h * state.ratio);
-            }
-            updateDimsInfo();
+            if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
+            else updateDimsInfo();
         };
-        document.getElementById('maintain-ratio').onchange = updateDimsInfo;
+        document.getElementById('maintain-ratio').onchange = function() {
+            if (this.checked) applyFitDimensions();
+            else updateDimsInfo();
+        };
 
         document.getElementById('btn-cancel').onclick = function() {
             vscode.postMessage({ command: 'replaceImageCancel' });
@@ -413,7 +442,7 @@ export function getReplaceImagePanelHtml(): string {
             const w = parseInt(document.getElementById('width-px').value, 10);
             const h = parseInt(document.getElementById('height-px').value, 10);
             if (!state.range || !state.newDataUri) return;
-            if (state.origW > 0 && state.origH > 0 && (w !== state.origW || h !== state.origH) && w > 0 && h > 0) {
+            if (state.originalImageW > 0 && state.originalImageH > 0 && (w !== state.originalImageW || h !== state.originalImageH) && w > 0 && h > 0) {
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
                 canvas.height = h;

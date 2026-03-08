@@ -227,14 +227,14 @@ export function activate(context: vscode.ExtensionContext) {
                                 if (msg.command === 'replaceImageApply' && msg.range && msg.dataUri) {
                                     await applyReplaceImage(msg.range, msg.dataUri);
                                     replacePanel.dispose();
-                                    if (currentPanel && activeXml && activeXslt) triggerAutoUpdate();
+                                    if (currentPanel && activeXml && activeXslt) runUpdate();
                                 }
                                 if (msg.command === 'replaceImageCancel') {
                                     replacePanel.dispose();
                                 }
                             }, undefined, context.subscriptions);
                         }
-                        replacePanel.webview.html = getReplaceImagePanelHtml();
+                        replacePanel.webview.html = getReplaceImagePanelHtml(Date.now());
                         replacePanel.reveal(vscode.ViewColumn.One);
                         break;
                     case 'jumpToImage':
