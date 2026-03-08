@@ -135,6 +135,14 @@ export function activate(context: vscode.ExtensionContext) {
         activeXml = selectedXml;
         activeXslt = selectedXslt;
 
+        // Ensure layout: code on the left (One), preview on the right (Two)
+        const docToFocus = activeXml ?? activeXslt;
+        await vscode.window.showTextDocument(docToFocus, {
+            viewColumn: vscode.ViewColumn.One,
+            preserveFocus: false,
+        });
+        lastSwitchedTo = docToFocus === activeXml ? 'xml' : 'xslt';
+
         if (!currentPanel) {
             currentPanel = vscode.window.createWebviewPanel(
                 'xsltPreview',
@@ -186,16 +194,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         runUpdate();
-
-        // Focus left pane so Explorer file clicks open there; keep preview pane with only the preview tab
-        const docToFocus = activeXml ?? activeXslt;
-        if (docToFocus) {
-            vscode.window.showTextDocument(docToFocus, {
-                viewColumn: vscode.ViewColumn.One,
-                preserveFocus: false,
-            });
-            lastSwitchedTo = docToFocus === activeXml ? 'xml' : 'xslt';
-        }
     });
 
     context.subscriptions.push(disposablePreview);
