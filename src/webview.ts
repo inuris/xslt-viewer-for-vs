@@ -32,6 +32,18 @@ export function getWebviewShell(): string {
         }
         .btn:hover { background-color: var(--vscode-toolbar-hoverBackground); }
         .btn:active { background-color: var(--vscode-toolbar-activeBackground); }
+
+        .toolbar-zoom {
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            min-width: 72px;
+        }
+        .toolbar-zoom:focus { outline: 1px solid var(--vscode-focusBorder); }
         
         #main-container {
             flex: 1;
@@ -100,6 +112,14 @@ export function getWebviewShell(): string {
 </head>
 <body>
     <div id="toolbar">
+        <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            <select id="zoom-select" class="toolbar-zoom" aria-label="Zoom">
+                <option value="25">25%</option>
+                <option value="50">50%</option>
+                <option value="75">75%</option>
+                <option value="100" selected>100%</option>
+            </select>
+        </label>
         <button class="btn" onclick="post('switchFile')">
             <span>⟳ Switch File</span>
         </button>
@@ -126,12 +146,27 @@ export function getWebviewShell(): string {
         const frame = document.getElementById('preview-frame');
         const imgList = document.getElementById('image-list');
         const sidebar = document.getElementById('sidebar');
+        const zoomSelect = document.getElementById('zoom-select');
+
+        function applyZoom() {
+            const pct = parseInt(zoomSelect.value, 10);
+            const scale = pct / 100;
+            try {
+                const doc = frame.contentDocument;
+                if (doc && doc.documentElement) {
+                    doc.documentElement.style.zoom = scale.toString();
+                }
+            } catch (e) {}
+        }
+        zoomSelect.addEventListener('change', applyZoom);
+        frame.addEventListener('load', applyZoom);
 
         window.addEventListener('message', event => {
             const msg = event.data;
             if (msg.command === 'update') {
                frame.srcdoc = msg.html;
                renderImages(msg.images);
+               applyZoom();
             }
         });
         
