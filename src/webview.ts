@@ -529,9 +529,24 @@ export function wrapForIframe(content: string): string {
     <script>
         (function() {
             var hoveredEl = null, hoveredParent = null;
+            var tip = document.createElement('div');
+            tip.id = 'xslt-dimensions-tooltip';
+            tip.style.cssText = 'position:fixed;z-index:99999;padding:4px 8px;background:rgba(0,0,0,0.85);color:#fff;font-size:12px;font-family:sans-serif;border-radius:4px;pointer-events:none;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);display:none;';
+            document.body.appendChild(tip);
+            function showTip(el) {
+                tip.textContent = el.offsetWidth + ' × ' + el.offsetHeight;
+                tip.style.display = 'block';
+                var r = el.getBoundingClientRect();
+                var topVal = r.top - tip.offsetHeight - 4;
+                if (topVal < 8) topVal = r.bottom + 4;
+                tip.style.left = Math.max(4, r.left + (r.width / 2) - (tip.offsetWidth / 2)) + 'px';
+                tip.style.top = topVal + 'px';
+            }
+            function hideTip() { tip.style.display = 'none'; }
             function clearHover() {
                 if (hoveredEl) { hoveredEl.style.outline = ''; hoveredEl = null; }
                 if (hoveredParent) { hoveredParent.style.outline = ''; hoveredParent = null; }
+                hideTip();
             }
             document.addEventListener('mouseover', (e) => {
                 var t = e.target.closest('[data-source-line]');
@@ -542,6 +557,7 @@ export function wrapForIframe(content: string): string {
                 hoveredParent = parentWithLine;
                 t.style.outline = '2px solid orange';
                 if (parentWithLine) parentWithLine.style.outline = '2px dashed rgba(255,165,0,0.45)';
+                showTip(t);
             });
             document.addEventListener('mouseout', (e) => {
                 var t = e.target.closest('[data-source-line]');
