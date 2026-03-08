@@ -3,15 +3,17 @@ import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { runPythonTransformation, instrumentXslt } from './transformation';
-import { scanImages, handleSaveImage, handleReplaceImage, handleJumpToImage } from './images';
+import { scanImages, handleSaveImage, applyReplaceImage, handleJumpToImage, type ImageInfo } from './images';
 import { pickWorkspaceFile, updateXmlStylesheetLink } from './filePicker';
 import { findAndJump } from './navigation';
-import { getWebviewShell, wrapForIframe } from './webview';
+import { getWebviewShell, getReplaceImagePanelHtml, wrapForIframe } from './webview';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
 
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
+    let replacePanel: vscode.WebviewPanel | undefined = undefined;
+    let replacePendingInit: { range: ImageInfo['range']; currentImageDataUri: string } | null = null;
     let activeXml: vscode.TextDocument | undefined;
     let activeXslt: vscode.TextDocument | undefined;
     let updateTimeout: NodeJS.Timeout | undefined;
@@ -182,7 +184,58 @@ export function activate(context: vscode.ExtensionContext) {
                         await handleSaveImage(message.base64, message.mime);
                         break;
                     case 'replaceImage':
-                        await handleReplaceImage(message.range);
+                        replacePendingInit = {
+                            range: message.range,
+                            currentImageDataUri: message.fullMatch || '',
+                        };
+                        if (!replacePanel) {
+                            replacePanel = vscode.window.createWebviewPanel(
+                                'xsltReplaceImage',
+                                'Replace Image',
+                                vscode.ViewColumn.One,
+                                { enableScripts: true }
+                            );
+                            replacePanel.onDidDispose(() => {
+                                replacePanel = undefined;
+                                replacePendingInit = null;
+                            }, null, context.subscriptions);
+                            replacePanel.webview.onDidReceiveMessage(async (msg: { command: string; dataUri?: string; range?: ImageInfo['range'] }) => {
+                                if (!replacePanel) return;
+                                if (msg.command === 'replaceImageReady' && replacePendingInit) {
+                                    replacePanel.webview.postMessage({
+                                        command: 'init',
+                                        range: replacePendingInit.range,
+                                        currentImageDataUri: replacePendingInit.currentImageDataUri,
+                                    });
+                                    replacePendingInit = null;
+                                }
+                                if (msg.command === 'replaceImagePickFile') {
+                                    const uris = await vscode.window.showOpenDialog({
+                                        filters: { Images: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] },
+                                    });
+                                    if (uris?.[0]) {
+                                        const buf = fs.readFileSync(uris[0].fsPath);
+                                        const b64 = buf.toString('base64');
+                                        const ext = path.extname(uris[0].fsPath).toLowerCase();
+                                        const mime = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : ext === '.svg' ? 'image/svg+xml' : ext === '.webp' ? 'image/webp' : 'image/png';
+                                        replacePanel.webview.postMessage({
+                                            command: 'replaceImageFileData',
+                                            dataUri: `data:${mime};base64,${b64}`,
+                                        });
+                                    }
+                                }
+                                if (msg.command === 'replaceImageApply' && msg.range && msg.dataUri) {
+                                    await applyReplaceImage(msg.range, msg.dataUri);
+                                    replacePanel.dispose();
+                                    if (currentPanel && activeXml && activeXslt) triggerAutoUpdate();
+                                }
+                                if (msg.command === 'replaceImageCancel') {
+                                    replacePanel.dispose();
+                                }
+                            }, undefined, context.subscriptions);
+                        }
+                        replacePanel.webview.html = getReplaceImagePanelHtml();
+                        replacePanel.reveal(vscode.ViewColumn.One);
                         break;
                     case 'jumpToImage':
                         await handleJumpToImage(message.range);

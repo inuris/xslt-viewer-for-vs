@@ -239,10 +239,11 @@ export function getWebviewShell(): string {
              }
              imgList.innerHTML = images.map((img, i) => \`
                 <div class="image-item">
-                    <img class="thumb" src="\${img.fullMatch}" onclick="jumpToImg(\${i})" title="Jump to Line \${img.line}">
+                    <img class="thumb" src="\${img.fullMatch}" onclick="jumpToImg(\${i})" title="Jump to Line \${img.line}" onload="var d=this.nextElementSibling.querySelector('.img-dimensions');if(d)d.textContent=this.naturalWidth+' × '+this.naturalHeight;">
                     <div class="info">
                         <div><strong>Line \${img.line}</strong></div>
                         <div>\${img.mime.split('/')[1]} - \${img.size}</div>
+                        <div class="img-dimensions">—</div>
                     </div>
                     <div class="actions">
                         <button class="mini-btn" onclick="saveImg(\${i})">🔽Download</button>
@@ -265,8 +266,168 @@ export function getWebviewShell(): string {
         
         function replaceImg(i) {
              const img = window.currentImages[i];
-             post('replaceImage', { range: img.range });
+             post('replaceImage', { range: img.range, fullMatch: img.fullMatch });
         }
+    </script>
+</body>
+</html>`;
+}
+
+/**
+ * HTML for the Replace Image dialog (Upload / Paste Base64 + Width x Height + Maintain ratio).
+ */
+export function getReplaceImagePanelHtml(): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 16px; font-family: var(--vscode-font-family); background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-size: 13px; }
+        .section { margin-bottom: 16px; }
+        .section-title { font-weight: 600; margin-bottom: 8px; }
+        .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        label { min-width: 90px; }
+        input[type="number"] { width: 80px; padding: 4px 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; }
+        input[type="checkbox"] { margin-right: 6px; }
+        textarea { width: 100%; min-height: 80px; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; box-sizing: border-box; font-family: inherit; resize: vertical; }
+        .btn { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
+        .btn-primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+        .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
+        .btn-secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+        .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+        .actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+        .dims-info { margin: 8px 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <div class="section-title">Replace image</div>
+        <div class="row">
+            <button type="button" class="btn btn-secondary" id="btn-upload">Upload...</button>
+            <span style="color: var(--vscode-descriptionForeground);">or paste Base64 below</span>
+        </div>
+        <div class="section">
+            <label for="paste-base64">Paste Base64 image string:</label>
+            <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
+        </div>
+    </div>
+    <div id="dims-section" class="section hidden">
+        <div class="section-title">Resize (optional)</div>
+        <div class="row">
+            <label for="width-px">Width (px):</label>
+            <input type="number" id="width-px" min="1" />
+            <span>×</span>
+            <label for="height-px">Height (px):</label>
+            <input type="number" id="height-px" min="1" />
+        </div>
+        <div class="row">
+            <input type="checkbox" id="maintain-ratio" checked />
+            <label for="maintain-ratio">Maintain aspect ratio</label>
+        </div>
+        <div class="dims-info" id="dims-info">Original: — | New: —</div>
+    </div>
+    <div class="actions">
+        <button type="button" class="btn btn-secondary" id="btn-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-insert">Insert</button>
+    </div>
+    <script>
+        const vscode = acquireVsCodeApi();
+        let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1 };
+
+        window.addEventListener('message', function(e) {
+            const msg = e.data;
+            if (msg.command === 'init') {
+                state.range = msg.range;
+                state.currentDataUri = msg.currentImageDataUri || null;
+                if (state.currentDataUri) loadImageAndFillDims(state.currentDataUri);
+            }
+            if (msg.command === 'replaceImageFileData') {
+                state.newDataUri = msg.dataUri;
+                loadImageAndFillDims(msg.dataUri);
+            }
+        });
+        vscode.postMessage({ command: 'replaceImageReady' });
+
+        function parseImageInput(val) {
+            if (!val || !val.trim()) return null;
+            val = val.trim();
+            if (val.indexOf('data:') === 0) return val;
+            return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
+        }
+
+        function loadImageAndFillDims(dataUri) {
+            const img = new Image();
+            img.onload = function() {
+                state.origW = img.naturalWidth;
+                state.origH = img.naturalHeight;
+                state.ratio = state.origW / state.origH;
+                state.newDataUri = dataUri;
+                document.getElementById('dims-section').classList.remove('hidden');
+                const w = document.getElementById('width-px');
+                const h = document.getElementById('height-px');
+                w.value = state.origW;
+                h.value = state.origH;
+                updateDimsInfo();
+            };
+            img.onerror = function() { state.newDataUri = null; };
+            img.src = dataUri;
+        }
+
+        function updateDimsInfo() {
+            const w = parseInt(document.getElementById('width-px').value, 10) || 0;
+            const h = parseInt(document.getElementById('height-px').value, 10) || 0;
+            document.getElementById('dims-info').textContent = 'Original: ' + state.origW + '×' + state.origH + ' | New: ' + w + '×' + h;
+        }
+
+        document.getElementById('btn-upload').onclick = function() {
+            vscode.postMessage({ command: 'replaceImagePickFile' });
+        };
+
+        document.getElementById('paste-base64').oninput = function() {
+            const dataUri = parseImageInput(this.value);
+            if (dataUri) loadImageAndFillDims(dataUri);
+        };
+
+        document.getElementById('width-px').oninput = function() {
+            if (document.getElementById('maintain-ratio').checked) {
+                const w = parseInt(this.value, 10);
+                if (!isNaN(w) && w > 0) document.getElementById('height-px').value = Math.round(w / state.ratio);
+            }
+            updateDimsInfo();
+        };
+        document.getElementById('height-px').oninput = function() {
+            if (document.getElementById('maintain-ratio').checked) {
+                const h = parseInt(this.value, 10);
+                if (!isNaN(h) && h > 0) document.getElementById('width-px').value = Math.round(h * state.ratio);
+            }
+            updateDimsInfo();
+        };
+        document.getElementById('maintain-ratio').onchange = updateDimsInfo;
+
+        document.getElementById('btn-cancel').onclick = function() {
+            vscode.postMessage({ command: 'replaceImageCancel' });
+        };
+
+        document.getElementById('btn-insert').onclick = function() {
+            const w = parseInt(document.getElementById('width-px').value, 10);
+            const h = parseInt(document.getElementById('height-px').value, 10);
+            if (!state.range || !state.newDataUri) return;
+            if (state.origW > 0 && state.origH > 0 && (w !== state.origW || h !== state.origH) && w > 0 && h > 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, w, h);
+                    vscode.postMessage({ command: 'replaceImageApply', dataUri: canvas.toDataURL('image/png'), range: state.range });
+                };
+                img.src = state.newDataUri;
+            } else {
+                vscode.postMessage({ command: 'replaceImageApply', dataUri: state.newDataUri, range: state.range });
+            }
+        };
     </script>
 </body>
 </html>`;

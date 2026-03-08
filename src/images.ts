@@ -63,23 +63,21 @@ export async function handleSaveImage(base64: string, mime: string): Promise<voi
     }
 }
 
-export async function handleReplaceImage(range: ImageInfo['range'] | undefined): Promise<void> {
-    if (!range || !range.file) return;
+/**
+ * Apply a replace in the document at the given range with the new data URI string.
+ */
+export async function applyReplaceImage(
+    range: ImageInfo['range'],
+    dataUri: string
+): Promise<void> {
     const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(range.file));
     const editor = await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
-    const uris = await vscode.window.showOpenDialog({ filters: { Images: ['png', 'jpg', 'svg'] } });
-
-    if (uris?.[0]) {
-        const b64 = fs.readFileSync(uris[0].fsPath).toString('base64');
-        const mime = 'image/png';
-        const newStr = `data:${mime};base64,${b64}`;
-        editor.edit(edit => {
-            edit.replace(
-                new vscode.Range(range.startLine, range.startChar, range.endLine, range.endChar),
-                newStr
-            );
-        });
-    }
+    await editor.edit(edit => {
+        edit.replace(
+            new vscode.Range(range.startLine, range.startChar, range.endLine, range.endChar),
+            dataUri
+        );
+    });
 }
 
 export async function handleJumpToImage(range: ImageInfo['range'] | undefined): Promise<void> {
