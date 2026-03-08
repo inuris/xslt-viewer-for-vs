@@ -246,7 +246,7 @@ export function getWebviewShell(): string {
                         <div class="img-dimensions">—</div>
                     </div>
                     <div class="actions">
-                        <button class="mini-btn" onclick="saveImg(\${i})">🔽Download</button>
+                        <button class="mini-btn" onclick="exportImg(\${i})">Export</button>
                         <button class="mini-btn" onclick="replaceImg(\${i})">🔄️Replace</button>
                     </div>
                 </div>
@@ -259,9 +259,9 @@ export function getWebviewShell(): string {
              post('jumpToImage', { range: img.range });
         }
 
-        function saveImg(i) {
+        function exportImg(i) {
             const img = window.currentImages[i];
-            post('saveImage', { base64: img.base64, mime: img.mime });
+            post('exportImage', { base64: img.base64, mime: img.mime, fullMatch: img.fullMatch });
         }
         
         function replaceImg(i) {
@@ -456,6 +456,65 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             } else {
                 vscode.postMessage({ command: 'replaceImageApply', dataUri: state.newDataUri, range: state.range });
             }
+        };
+    </script>
+</body>
+</html>`;
+}
+
+/**
+ * HTML for the Export Image dialog (Save file + Base64 textarea to copy).
+ * @param nonce Optional value to force webview reload when opening for a different image.
+ */
+export function getExportImagePanelHtml(nonce?: number): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<!-- ${nonce ?? ''} -->
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 16px; font-family: var(--vscode-font-family); background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-size: 13px; }
+        .section { margin-bottom: 16px; }
+        .section-title { font-weight: 600; margin-bottom: 8px; }
+        .btn { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
+        .btn-primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+        .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
+        .btn-secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+        .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+        .actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+        textarea { width: 100%; min-height: 120px; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; box-sizing: border-box; font-family: var(--vscode-editor-font-family); font-size: 12px; resize: vertical; }
+        label { display: block; margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <div class="section-title">Export image</div>
+        <button type="button" class="btn btn-primary" id="btn-save">Save file...</button>
+    </div>
+    <div class="section">
+        <label for="base64-ta">Base64 (copy to clipboard):</label>
+        <textarea id="base64-ta" readonly></textarea>
+    </div>
+    <div class="actions">
+        <button type="button" class="btn btn-secondary" id="btn-close">Close</button>
+    </div>
+    <script>
+        const vscode = acquireVsCodeApi();
+        var exportState = { base64: '', mime: '' };
+        window.addEventListener('message', function(e) {
+            var msg = e.data;
+            if (msg.command === 'init') {
+                exportState.base64 = msg.base64 || '';
+                exportState.mime = msg.mime || '';
+                document.getElementById('base64-ta').value = msg.fullMatch || ('data:' + (msg.mime || 'image/png') + ';base64,' + (msg.base64 || ''));
+            }
+        });
+        vscode.postMessage({ command: 'exportImageReady' });
+        document.getElementById('btn-save').onclick = function() {
+            vscode.postMessage({ command: 'exportImageSave', base64: exportState.base64, mime: exportState.mime });
+        };
+        document.getElementById('btn-close').onclick = function() {
+            vscode.postMessage({ command: 'exportImageClose' });
         };
     </script>
 </body>

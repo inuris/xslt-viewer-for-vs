@@ -6,7 +6,7 @@ import { runPythonTransformation, instrumentXslt } from './transformation';
 import { scanImages, handleSaveImage, applyReplaceImage, handleJumpToImage, type ImageInfo } from './images';
 import { pickWorkspaceFile, updateXmlStylesheetLink } from './filePicker';
 import { findAndJump } from './navigation';
-import { getWebviewShell, getReplaceImagePanelHtml, wrapForIframe } from './webview';
+import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wrapForIframe } from './webview';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
@@ -14,6 +14,8 @@ export function activate(context: vscode.ExtensionContext) {
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
     let replacePanel: vscode.WebviewPanel | undefined = undefined;
     let replacePendingInit: { range: ImageInfo['range']; currentImageDataUri: string } | null = null;
+    let exportPanel: vscode.WebviewPanel | undefined = undefined;
+    let exportPendingInit: { base64: string; mime: string; fullMatch: string } | null = null;
     let activeXml: vscode.TextDocument | undefined;
     let activeXslt: vscode.TextDocument | undefined;
     let updateTimeout: NodeJS.Timeout | undefined;
@@ -180,8 +182,44 @@ export function activate(context: vscode.ExtensionContext) {
                     case 'exportPdf':
                         vscode.commands.executeCommand('xslt-viewer.exportPdf');
                         break;
-                    case 'saveImage':
-                        await handleSaveImage(message.base64, message.mime);
+                    case 'exportImage':
+                        exportPendingInit = {
+                            base64: message.base64 || '',
+                            mime: message.mime || 'image/png',
+                            fullMatch: message.fullMatch || '',
+                        };
+                        if (!exportPanel) {
+                            exportPanel = vscode.window.createWebviewPanel(
+                                'xsltExportImage',
+                                'Export Image',
+                                vscode.ViewColumn.One,
+                                { enableScripts: true }
+                            );
+                            exportPanel.onDidDispose(() => {
+                                exportPanel = undefined;
+                                exportPendingInit = null;
+                            }, null, context.subscriptions);
+                            exportPanel.webview.onDidReceiveMessage(async (msg: { command: string; base64?: string; mime?: string }) => {
+                                if (!exportPanel) return;
+                                if (msg.command === 'exportImageReady' && exportPendingInit) {
+                                    exportPanel.webview.postMessage({
+                                        command: 'init',
+                                        base64: exportPendingInit.base64,
+                                        mime: exportPendingInit.mime,
+                                        fullMatch: exportPendingInit.fullMatch,
+                                    });
+                                    exportPendingInit = null;
+                                }
+                                if (msg.command === 'exportImageSave' && msg.base64 && msg.mime) {
+                                    await handleSaveImage(msg.base64, msg.mime);
+                                }
+                                if (msg.command === 'exportImageClose') {
+                                    exportPanel.dispose();
+                                }
+                            }, undefined, context.subscriptions);
+                        }
+                        exportPanel.webview.html = getExportImagePanelHtml(Date.now());
+                        exportPanel.reveal(vscode.ViewColumn.One);
                         break;
                     case 'replaceImage':
                         replacePendingInit = {
