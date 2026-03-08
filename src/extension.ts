@@ -15,6 +15,8 @@ export function activate(context: vscode.ExtensionContext) {
     let activeXml: vscode.TextDocument | undefined;
     let activeXslt: vscode.TextDocument | undefined;
     let updateTimeout: NodeJS.Timeout | undefined;
+    /** Which of the pair was last shown by Switch File (so we can toggle when e.g. Preview has focus) */
+    let lastSwitchedTo: 'xml' | 'xslt' | null = null;
 
     const triggerAutoUpdate = () => {
         if (updateTimeout) clearTimeout(updateTimeout);
@@ -157,6 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
                 viewColumn: vscode.ViewColumn.One,
                 preserveFocus: false,
             });
+            lastSwitchedTo = docToFocus === activeXml ? 'xml' : 'xslt';
         }
     });
 
@@ -215,18 +218,29 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('xslt-viewer.switchFile', async () => {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) return;
-            const doc = editor.document;
-
-            if (activeXml && activeXslt) {
-                if (doc.uri.toString() === activeXml.uri.toString()) {
-                    vscode.window.showTextDocument(activeXslt);
-                } else {
-                    vscode.window.showTextDocument(activeXml);
-                }
-            } else {
+            if (!activeXml || !activeXslt) {
                 vscode.window.showInformationMessage('No active transformation pair.');
+                return;
+            }
+
+            const editor = vscode.window.activeTextEditor;
+            const doc = editor?.document;
+
+            if (doc?.uri.toString() === activeXml.uri.toString()) {
+                await vscode.window.showTextDocument(activeXslt, { viewColumn: vscode.ViewColumn.One });
+                lastSwitchedTo = 'xslt';
+            } else if (doc?.uri.toString() === activeXslt.uri.toString()) {
+                await vscode.window.showTextDocument(activeXml, { viewColumn: vscode.ViewColumn.One });
+                lastSwitchedTo = 'xml';
+            } else {
+                // No editor or different file (e.g. Preview focused): toggle from last shown
+                if (lastSwitchedTo === 'xslt') {
+                    await vscode.window.showTextDocument(activeXml, { viewColumn: vscode.ViewColumn.One });
+                    lastSwitchedTo = 'xml';
+                } else {
+                    await vscode.window.showTextDocument(activeXslt, { viewColumn: vscode.ViewColumn.One });
+                    lastSwitchedTo = 'xslt';
+                }
             }
         })
     );
