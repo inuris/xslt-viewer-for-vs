@@ -537,8 +537,8 @@ function getWebviewShell() {
                         <div>\${img.mime.split('/')[1]} - \${img.size}</div>
                     </div>
                     <div class="actions">
-                        <button class="mini-btn" onclick="saveImg(\${i})">⬇</button>
-                        <button class="mini-btn" onclick="replaceImg(\${i})">✎</button>
+                        <button class="mini-btn" onclick="saveImg(\${i})">🔽Download</button>
+                        <button class="mini-btn" onclick="replaceImg(\${i})">🔄️Replace</button>
                     </div>
                 </div>
              \`).join('');
