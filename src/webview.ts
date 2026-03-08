@@ -112,6 +112,11 @@ export function getWebviewShell(): string {
 </head>
 <body>
     <div id="toolbar">
+        <button class="btn" onclick="post('switchFile')">
+            <span>⟳ Switch File</span>
+        </button>
+        <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
+        <div style="flex:1"></div>
         <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <select id="zoom-select" class="toolbar-zoom" aria-label="Zoom">
                 <option value="25">25%</option>
@@ -120,11 +125,6 @@ export function getWebviewShell(): string {
                 <option value="100" selected>100%</option>
             </select>
         </label>
-        <button class="btn" onclick="post('switchFile')">
-            <span>⟳ Switch File</span>
-        </button>
-        <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
-        <div style="flex:1"></div>
         <button class="btn" onclick="toggleSidebar()">🖼️ Images</button>
     </div>
     
