@@ -1,0 +1,23 @@
+---
+description: Protocol for Cursor to self-update project instructions when adding features or functions
+alwaysApply: true
+---
+
+# Self-Update Instructions (Required)
+
+When you add, change, or remove **any feature, function, or command** in this codebase:
+
+1. **Update `AI_CONTEXT.md`**
+   - Add or edit the relevant section (workflows, file responsibilities, new commands).
+   - Keep the "Codebase Index & Navigation" and "Core Workflows" sections in sync with the code.
+   - If you add new commands in `package.json`, document them and their triggers.
+
+2. **Update Cursor rules in `.cursor/rules/`**
+   - If the new feature introduces a new pattern, file type, or convention: add or edit a rule (`.mdc`) that describes it.
+   - If an existing rule becomes outdated (e.g. new commands, new workflow), update that rule so future sessions have accurate context.
+
+3. **Keep instructions concise**
+   - Prefer updating existing rules over creating many small ones.
+   - Ensure the rule `description` and content still match what the code does.
+
+You **must** apply this protocol whenever you implement or modify user-facing or structural behavior (commands, webview messages, Python I/O, configuration, workflows). Do not skip updating instructions "for later."

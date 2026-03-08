@@ -80,3 +80,5 @@ This project is a port of the "XSLT Viewer Cloud" (Web App).
 1. **New Commands:** If `package.json` commands change.
 2. **Python Logic:** If `transform.py` logic (e.g., arguments or return format) changes.
 3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
+
+**Cursor instructions:** Project rules live in `.cursor/rules/`. When adding or changing features or functions, **also update** the relevant `.mdc` rules and this file. See the rule `self-update-instructions.mdc` for the required self-update protocol.
