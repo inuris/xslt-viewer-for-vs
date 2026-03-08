@@ -176,24 +176,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    // Lock preview pane: whenever the right pane (preview) becomes active, refocus the left so new tabs always open on the left
-    context.subscriptions.push(
-        vscode.window.tabGroups.onDidChangeTabGroups(() => {
-            if (!currentPanel || !currentPanel.visible) return;
-            if (vscode.window.tabGroups.activeTabGroup.viewColumn !== vscode.ViewColumn.Two) return;
-            const docToFocus = activeXml ?? activeXslt;
-            if (!docToFocus) return;
-            // Small delay so a click in the webview (e.g. Zoom) is processed before we refocus
-            setTimeout(() => {
-                if (!currentPanel?.visible) return;
-                if (vscode.window.tabGroups.activeTabGroup.viewColumn !== vscode.ViewColumn.Two) return;
-                vscode.window.showTextDocument(docToFocus, {
-                    viewColumn: vscode.ViewColumn.One,
-                    preserveFocus: false,
-                });
-            }, 80);
-        })
-    );
+    // No API to lock the preview pane; we only move any text editor tab that opens in the right pane to the left (see handler above).
 
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(async editor => {
