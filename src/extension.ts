@@ -66,14 +66,24 @@ export function activate(context: vscode.ExtensionContext) {
         });
     };
 
-    const disposablePreview = vscode.commands.registerCommand('xslt-viewer.preview', async () => {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            vscode.window.showErrorMessage('No active editor found');
-            return;
+    const disposablePreview = vscode.commands.registerCommand('xslt-viewer.preview', async (resourceUri?: vscode.Uri) => {
+        let doc: vscode.TextDocument;
+        if (resourceUri) {
+            try {
+                doc = await vscode.workspace.openTextDocument(resourceUri);
+            } catch {
+                vscode.window.showErrorMessage('Could not open the selected file.');
+                return;
+            }
+        } else {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor found. Open a file or right‑click a file in the Explorer.');
+                return;
+            }
+            doc = editor.document;
         }
 
-        const doc = editor.document;
         let selectedXml: vscode.TextDocument | undefined;
         let selectedXslt: vscode.TextDocument | undefined;
 
@@ -142,7 +152,17 @@ export function activate(context: vscode.ExtensionContext) {
             currentPanel.webview.onDidReceiveMessage(async message => {
                 switch (message.command) {
                     case 'jumpToCode':
-                        if (activeXslt) findAndJump(activeXslt, message);
+                        if (activeXslt) {
+                            findAndJump(activeXslt, message);
+                            lastSwitchedTo = 'xslt';
+                            if (currentPanel?.visible) {
+                                currentPanel.webview.postMessage({ command: 'setSwitchLabel', label: 'XML' });
+                                currentPanel.webview.postMessage({
+                                    command: 'setPath',
+                                    relativePath: vscode.workspace.asRelativePath(activeXslt.uri),
+                                });
+                            }
+                        }
                         break;
                     case 'switchFile':
                         vscode.commands.executeCommand('xslt-viewer.switchFile');
