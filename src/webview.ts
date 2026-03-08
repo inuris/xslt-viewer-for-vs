@@ -28,9 +28,9 @@ export function getWebviewShell(): string {
             white-space: nowrap;
         }
         #path-bar {
-            gap: 10px;
+            gap: 8px;
         }
-        #path-text { flex: 1; min-width: 0; }
+        #path-text { flex: 0 1 auto; min-width: 0; max-width: 75%; }
         .path-bar-btn {
             flex-shrink: 0;
             background: var(--vscode-button-secondaryBackground);
@@ -211,6 +211,10 @@ export function getWebviewShell(): string {
             if (msg.command === 'setSwitchLabel' && msg.label) {
                const switchBtn = document.getElementById('switch-file-btn');
                if (switchBtn) switchBtn.textContent = msg.label;
+            }
+            if (msg.command === 'setPath' && msg.relativePath !== undefined) {
+               const pathEl = document.getElementById('path-text');
+               if (pathEl) pathEl.textContent = msg.relativePath;
             }
         });
         

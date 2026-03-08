@@ -42,13 +42,27 @@ export function activate(context: vscode.ExtensionContext) {
         const wrappedHtml = wrapForIframe(resultHtml);
         const images = scanImages([activeXml, activeXslt]);
 
+        const editor = vscode.window.activeTextEditor;
+        let switchButtonLabel: string;
+        let currentDoc: vscode.TextDocument;
+        if (editor?.document.uri.toString() === activeXml.uri.toString()) {
+            switchButtonLabel = 'XSLT';
+            currentDoc = activeXml;
+        } else if (editor?.document.uri.toString() === activeXslt.uri.toString()) {
+            switchButtonLabel = 'XML';
+            currentDoc = activeXslt;
+        } else {
+            switchButtonLabel = lastSwitchedTo === 'xml' ? 'XSLT' : 'XML';
+            currentDoc = lastSwitchedTo === 'xml' ? activeXml : activeXslt;
+        }
+
         currentPanel.webview.postMessage({
             command: 'update',
             html: wrappedHtml,
             images,
-            filename: path.basename(activeXml.fileName),
-            relativePath: vscode.workspace.asRelativePath(activeXml.uri),
-            switchButtonLabel: lastSwitchedTo === 'xml' ? 'XSLT' : 'XML',
+            filename: path.basename(currentDoc.fileName),
+            relativePath: vscode.workspace.asRelativePath(currentDoc.uri),
+            switchButtonLabel,
         });
     };
 
@@ -244,9 +258,14 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             }
             if (currentPanel?.visible) {
+                const shownDoc = lastSwitchedTo === 'xml' ? activeXml : activeXslt;
                 currentPanel.webview.postMessage({
                     command: 'setSwitchLabel',
                     label: lastSwitchedTo === 'xml' ? 'XSLT' : 'XML',
+                });
+                currentPanel.webview.postMessage({
+                    command: 'setPath',
+                    relativePath: vscode.workspace.asRelativePath(shownDoc.uri),
                 });
             }
         })
