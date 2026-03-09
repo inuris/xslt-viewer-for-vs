@@ -10,12 +10,15 @@
 
 ### A. Extension Entry & Logic
 **File:** `src/extension.ts`
-**Description:** The core controller for the extension.
-- **`activate()`**: Registers commands, views, and event listeners.
-- **`activeXml` / `activeXslt`**: Tracks the currently "paired" files for transformation.
-- **`runUpdate()`**: Orchestrates the transformation steps.
-- **`instrumentXslt()`**: Injects `data-source-line` attributes into XSLT for click-to-jump navigation.
-- **`ImageSidebarProvider`**: Manages the "Embedded Images" sidebar view (webview-based).
+**Description:** The core controller; wires commands, panel, and events only. Delegates to modules below.
+- **`activate()`**: Registers commands, webview panel, and event listeners; holds `currentPanel`, `activeXml`, `activeXslt`, and `runUpdate()` / `triggerAutoUpdate()`.
+
+**Supporting modules (under `src/`):**
+- **`transformation.ts`**: `runPythonTransformation()`, `instrumentXslt()` — Python spawn + XSLT line instrumentation.
+- **`images.ts`**: `scanImages()`, `handleSaveImage()`, `handleReplaceImage()`, `handleJumpToImage()` — base64 image scan and actions.
+- **`filePicker.ts`**: `pickWorkspaceFile()`, `updateXmlStylesheetLink()` — file picker and XML `<?xml-stylesheet href="...">` updates.
+- **`navigation.ts`**: `findAndJump()`, `showRange()` — click-to-jump from preview to XSLT source.
+- **`webview.ts`**: `getWebviewShell()`, `wrapForIframe()` — preview panel HTML and iframe click script injection.
 
 ### B. Transformation Backend
 **File:** `src/python/transform.py`
@@ -80,3 +83,5 @@ This project is a port of the "XSLT Viewer Cloud" (Web App).
 1. **New Commands:** If `package.json` commands change.
 2. **Python Logic:** If `transform.py` logic (e.g., arguments or return format) changes.
 3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
+
+**Cursor instructions:** Project rules live in `.cursor/rules/`. When adding or changing features or functions, **also update** the relevant `.mdc` rules and this file. See the rule `self-update-instructions.mdc` for the required self-update protocol.
