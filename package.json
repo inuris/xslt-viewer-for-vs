@@ -33,6 +33,10 @@
         "command": "xslt-viewer.exportPdf",
         "title": "Export Preview to PDF",
         "icon": "$(file-pdf)"
+      },
+      {
+        "command": "xslt-viewer.showSetup",
+        "title": "XSLT Viewer: Check Python & lxml Setup"
       }
     ],
 

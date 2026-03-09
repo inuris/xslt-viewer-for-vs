@@ -219,8 +219,9 @@ export function getWebviewShell(): string {
         });
         
         window.addEventListener('message', event => {
-            if (event.data.command === 'jumpToCode') {
-                 vscode.postMessage(event.data);
+            const cmd = event.data && event.data.command;
+            if (cmd === 'jumpToCode' || cmd === 'showSetup') {
+                vscode.postMessage(event.data);
             }
         });
 

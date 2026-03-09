@@ -36,12 +36,24 @@ This extension requires **Python** to be installed on your system.
 | `Ctrl+Alt+X` / `Cmd+Alt+X` | Open / refresh XSLT Preview |
 | `Shift+Alt+F` | Format XML/XSLT document (VS Code default) |
 
+To open the setup page manually at any time, run **XSLT Viewer: Check Python & lxml Setup** from the Command Palette (`Ctrl+Shift+P`).
+
 ## Extension Settings
 
 | Setting | Default | Description |
 |---|---|---|
 | `xslt-viewer.pythonPath` | `"python"` | Path to the Python interpreter (must have `lxml` installed). |
 | `xslt-viewer.formatIndentSize` | `4` | Number of spaces per indent level when formatting XML/XSLT. |
+
+## First-Run Setup Check
+
+When the extension activates it automatically checks whether Python and `lxml` are available. If either is missing a **Setup Guide** panel opens with:
+
+- Status badges showing which dependency is missing.
+- One-click platform-specific install instructions (Windows `winget`, macOS `brew`, Linux `apt`).
+- Copy buttons for every terminal command.
+- A **Check Again** button that re-runs the detection and closes the panel automatically once both dependencies are found.
+- An inline **Python path** input to set `xslt-viewer.pythonPath` directly in the setup panel (avoids opening the Settings UI).
 
 ## Known Issues
 

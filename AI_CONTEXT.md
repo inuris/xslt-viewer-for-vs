@@ -11,7 +11,7 @@
 ### A. Extension Entry & Logic
 **File:** `src/extension.ts`
 **Description:** The core controller; wires commands, panel, and events only. Delegates to modules below.
-- **`activate()`**: Registers commands, webview panel, event listeners; holds `currentPanel`, `replacePanel`, `exportPanel`, `activeXml`, `activeXslt`, `lastSwitchedTo`, and `runUpdate()` / `triggerAutoUpdate()`.
+- **`activate()`**: Calls `checkDependencies()`, then registers commands, webview panel, event listeners; holds `currentPanel`, `replacePanel`, `exportPanel`, `activeXml`, `activeXslt`, `lastSwitchedTo`, and `runUpdate()` / `triggerAutoUpdate()`.
 
 **Supporting modules (under `src/`):**
 - **`transformation.ts`**: `runPythonTransformation()`, `instrumentXslt()` — Python spawn + XSLT line instrumentation.
@@ -20,6 +20,7 @@
 - **`navigation.ts`**: `findAndJump()`, `showRange()` — click-to-jump from preview to XSLT source.
 - **`webview.ts`**: `getWebviewShell()`, `getReplaceImagePanelHtml()`, `getExportImagePanelHtml()`, `wrapForIframe()` — preview panel HTML (toolbar, zoom, path bar, image sidebar), image dialog panels, and iframe click/hover script injection.
 - **`formatter.ts`**: `formatXml()` — pure TypeScript XML/XSLT formatter registered as a VS Code document formatting provider for `xml` and `xsl` languages.
+- **`setup.ts`**: `checkDependencies()` / `showSetupForced()` — probes Python and lxml availability; opens a setup guide webview panel (`getSetupHtml`) if either is missing or when forced. Panel shows status badges, platform-specific install instructions, copy buttons, a "Check Again" action, a link to the `pythonPath` setting, and a collapsible **Diagnostic Log** showing the raw probe output for each command.
 
 ### B. Transformation Backend
 **File:** `src/python/transform.py`
@@ -36,7 +37,7 @@
 - **`package.json`**:
     - `xslt-viewer.pythonPath`: Path to the Python interpreter (default: `python`).
     - `xslt-viewer.formatIndentSize`: Number of spaces per indent level when formatting (default: `4`).
-    - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`.
+    - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
 
@@ -80,7 +81,19 @@ The extension attempts to intelligently pair XML and XSLT files:
     - **Export:** Opens `getExportImagePanelHtml()` panel — save to file via `handleSaveImage()` or copy raw base64.
     - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. Applied via `applyReplaceImage()`.
 
-### 6. XML/XSLT Formatter
+### 6. Dependency Setup Check (First-Run)
+- **Trigger:** Called immediately in `activate()` via `checkDependencies()` from `setup.ts`.
+- **Detection:** Spawns `[pythonPath] --version` and `[pythonPath] -c "import lxml"` as child processes.
+- **On failure (or forced):** Opens / reveals a singleton `xsltViewerSetup` webview panel in `ViewColumn.One` with:
+    - Status badges for Python and lxml.
+    - Tabbed platform-specific install steps (Windows `winget`, macOS `brew`, Linux `apt`), ordered by the current OS (`process.platform`).
+    - Copy buttons for each terminal command.
+    - **Check Again** — shows a "Checking…" loading state, re-runs detection; disposes panel and shows success notification if all good.
+    - **Save** — inline input for `pythonPath`; saving updates the setting via `workspace.getConfiguration().update()` without opening the Settings UI (avoids Cursor freeze when reopening settings repeatedly).
+    - **Diagnostic Log** (`<details>`) — shows the Python path used, the exact command probed, exit status, and raw stdout/stderr for both probes.
+- **`xslt-viewer.showSetup` command** — calls `showSetupForced(context)`, always opens the panel (even when all dependencies are healthy). Useful for debugging unknown transformation errors.
+
+### 7. XML/XSLT Formatter
 - **Provider:** Registered for `xml` and `xsl` languages via `vscode.languages.registerDocumentFormattingEditProvider`.
 - **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically while preserving all text content exactly (no changes to whitespace inside text nodes).
 - **Config:** Indent size from `xslt-viewer.formatIndentSize` setting.
