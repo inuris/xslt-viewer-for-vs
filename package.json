@@ -7,7 +7,7 @@
     "url": "https://github.com/inuris/xslt-viewer-vs"
   },
   "description": "Preview XSLT transformations and manage embedded images",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.96.0"
   },

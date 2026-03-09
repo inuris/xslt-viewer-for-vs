@@ -11,14 +11,15 @@
 ### A. Extension Entry & Logic
 **File:** `src/extension.ts`
 **Description:** The core controller; wires commands, panel, and events only. Delegates to modules below.
-- **`activate()`**: Registers commands, webview panel, and event listeners; holds `currentPanel`, `activeXml`, `activeXslt`, and `runUpdate()` / `triggerAutoUpdate()`.
+- **`activate()`**: Registers commands, webview panel, event listeners; holds `currentPanel`, `replacePanel`, `exportPanel`, `activeXml`, `activeXslt`, `lastSwitchedTo`, and `runUpdate()` / `triggerAutoUpdate()`.
 
 **Supporting modules (under `src/`):**
 - **`transformation.ts`**: `runPythonTransformation()`, `instrumentXslt()` — Python spawn + XSLT line instrumentation.
-- **`images.ts`**: `scanImages()`, `handleSaveImage()`, `handleReplaceImage()`, `handleJumpToImage()` — base64 image scan and actions.
+- **`images.ts`**: `scanImages()`, `handleSaveImage()`, `applyReplaceImage()`, `handleJumpToImage()` — base64 image scan, export, replace, and jump.
 - **`filePicker.ts`**: `pickWorkspaceFile()`, `updateXmlStylesheetLink()` — file picker and XML `<?xml-stylesheet href="...">` updates.
 - **`navigation.ts`**: `findAndJump()`, `showRange()` — click-to-jump from preview to XSLT source.
-- **`webview.ts`**: `getWebviewShell()`, `wrapForIframe()` — preview panel HTML and iframe click script injection.
+- **`webview.ts`**: `getWebviewShell()`, `getReplaceImagePanelHtml()`, `getExportImagePanelHtml()`, `wrapForIframe()` — preview panel HTML (toolbar, zoom, path bar, image sidebar), image dialog panels, and iframe click/hover script injection.
+- **`formatter.ts`**: `formatXml()` — pure TypeScript XML/XSLT formatter registered as a VS Code document formatting provider for `xml` and `xsl` languages.
 
 ### B. Transformation Backend
 **File:** `src/python/transform.py`
@@ -33,55 +34,82 @@
 
 ### C. Configuration & Setup
 - **`package.json`**:
-    - `xslt-viewer-sidebar`: Defines the sidebar container.
-    - `xslt-viewer.pythonPath`: Configuration setting to specify the Python interpreter (crucial for users with multiple environments).
+    - `xslt-viewer.pythonPath`: Path to the Python interpreter (default: `python`).
+    - `xslt-viewer.formatIndentSize`: Number of spaces per indent level when formatting (default: `4`).
+    - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`.
+    - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
 
 ## 2. Core Workflows
 
 ### 1. Rendering Pipeline (IPC)
 1. **Trigger:** `runUpdate()` calls `runPythonTransformation()`.
-2. **Instrumentation:** XSLT source is passed through `instrumentXslt()` (in TS) to add line mapping attributes.
+2. **Instrumentation:** XSLT source is passed through `instrumentXslt()` (in TS) to add `data-source-line` attributes.
 3. **Execution:**
    - Spawns a child process: `[pythonPath] src/python/transform.py`.
    - Sends JSON payload via `stdin`.
-4. **Output:** 
+4. **Output:**
    - Receives HTML via `stdout`.
-   - Injects HTML into the `currentPanel` Webview via `getWebviewContent()`.
-   - If error (stderr), displays an error page in the Webview via `getWebviewError()`.
+   - Wraps HTML with `wrapForIframe()` (injects click-to-jump + hover tooltip scripts).
+   - Posts `{ command: 'update', html, images, relativePath, switchButtonLabel }` to the webview.
+   - If error (stderr), displays an error message in the Webview.
 
 ### 2. Auto-Detection & Pairing
 The extension attempts to intelligently pair XML and XSLT files:
-- **From XML:** Checks for `<?xml-stylesheet href="..."?>`.
-- **From XSLT:** Scans open editors for XML files referencing the current stylesheet.
-- **Manual:** `xslt-viewer.switchFile` command allows manual pairing via QuickPick.
+- **From XML:** Checks for `<?xml-stylesheet href="...">`.
+- **From XSLT:** Prompts user to pick an XML file.
+- **Auto-update:** When the active editor switches to a different XML file with a stylesheet link, the pair is updated automatically.
+- **Manual:** `xslt-viewer.switchFile` command toggles between the active XML and XSLT, updating the path bar label.
 
 ### 3. "Click-to-Jump" Navigation
 - **Frontend (Webview):** The rendered HTML contains elements with `data-source-line` (injected by `instrumentXslt`).
 - **Interaction:** User clicks an element in the preview.
-- **Message:** Webview sends `{ command: 'jumpToCode', line: ... }` to Extension.
-- **Action:** Extension opens the `activeXslt` document and reveals the specific line.
+- **Message:** Webview iframe sends `{ command: 'jumpToCode', line: ... }` to the outer shell, which forwards it to the Extension.
+- **Action:** Extension calls `findAndJump()` to open `activeXslt` and reveal the specific line. Path bar and switch button label update accordingly.
 
-### 4. Embedded Image Management (Sidebar)
-- **Frontend:** A Webview View Provider (`ImageSidebarProvider`).
-- **Scanner:** Finds Base64 data URIs in the active document (regex based).
-- **Sidebar View:** Lists images with metadata (size, mime type).
+### 4. Hover Tooltip (Dimensions)
+- **Script:** Injected by `wrapForIframe()` into the iframe content.
+- **Behavior:** On `mouseover` of any `[data-source-line]` element, shows a floating tooltip with `offsetWidth × offsetHeight`. Parent element gets a dashed outline for context.
+
+### 5. Embedded Image Management (Preview Sidebar)
+- **Location:** Right sidebar panel inside `getWebviewShell()` (toggled by "🖼️ Images" button).
+- **Scanner:** `scanImages()` in `images.ts` — finds Base64 data URIs in the active XML and XSLT documents via regex.
+- **Sidebar View:** Lists images with thumbnail, format, byte size, and pixel dimensions (resolved via `onload`).
 - **Actions:**
-    - **Jump:** Reveal the image line in the editor.
-    - **Download/Edit:** (Planned/Partially Implemented in Webview script).
-    - **Export PDF:** Triggers `xslt-viewer.exportPdf` which opens the rendered HTML in the system browser for printing.
+    - **Jump:** `handleJumpToImage()` — reveal the image line in the editor.
+    - **Export:** Opens `getExportImagePanelHtml()` panel — save to file via `handleSaveImage()` or copy raw base64.
+    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. Applied via `applyReplaceImage()`.
 
-## 3. Comparison with Web App (`ref/`)
+### 6. XML/XSLT Formatter
+- **Provider:** Registered for `xml` and `xsl` languages via `vscode.languages.registerDocumentFormattingEditProvider`.
+- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically while preserving all text content exactly (no changes to whitespace inside text nodes).
+- **Config:** Indent size from `xslt-viewer.formatIndentSize` setting.
+
+### 7. PDF Export
+- **Command:** `xslt-viewer.exportPdf` — re-runs transformation (without instrumentation), writes HTML to a temp file, opens in the system browser for `Ctrl+P` printing.
+
+### 8. Layout Management
+- **Behavior:** Preview panel opens in `ViewColumn.Two`. When any text editor appears in `ViewColumn.Two`, it is automatically moved to `ViewColumn.One` to keep the preview pane clean.
+
+## 3. Webview Shell Structure (`getWebviewShell`)
+- **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
+- **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle.
+- **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
+- **Messages from Extension:** `update` (full refresh), `setSwitchLabel`, `setPath`.
+- **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`.
+
+## 4. Comparison with Web App (`ref/`)
 This project is a port of the "XSLT Viewer Cloud" (Web App).
 - **Storage:** Removed Custom VFS. Uses VS Code's native file system.
 - **Editor:** Removed Custom Monaco setup. Uses VS Code's native editor.
 - **Backend:** Retained the Python `lxml` logic, but moved from a Flask/HTTP server to a direct CLI script interface (`transform.py`).
 - **Webview:** Replaces the IFrame preview. The instrumentation logic was ported from `preview.js` to `extension.ts`.
 
-## 4. Maintenance Memory (Update Protocol)
+## 5. Maintenance Memory (Update Protocol)
 **When to update this file:**
 1. **New Commands:** If `package.json` commands change.
 2. **Python Logic:** If `transform.py` logic (e.g., arguments or return format) changes.
 3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
+4. **New Modules:** If new `.ts` files are added under `src/`.
 
 **Cursor instructions:** Project rules live in `.cursor/rules/`. When adding or changing features or functions, **also update** the relevant `.mdc` rules and this file. See the rule `self-update-instructions.mdc` for the required self-update protocol.
