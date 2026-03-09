@@ -8,9 +8,57 @@ import { pickWorkspaceFile, updateXmlStylesheetLink } from './filePicker';
 import { findAndJump } from './navigation';
 import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wrapForIframe } from './webview';
 import { formatXml } from './formatter';
+import { checkDependencies, showSetupForced } from './setup';
+
+// ─── Transformation error helpers ────────────────────────────────────────────
+
+/** True when the error is caused by a missing/broken Python environment rather than bad XML/XSLT. */
+function isPythonEnvError(msg: string): boolean {
+    const m = msg.toLowerCase();
+    return (
+        m.includes('enoent') ||
+        m.includes('no module named') ||
+        m.includes('modulenotfounderror') ||
+        m.includes('importerror') ||
+        m.includes('cannot find') ||
+        m.includes('spawnsyncsignal') ||
+        m.includes('spawn') && m.includes('failed')
+    );
+}
+
+function escForHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Error page rendered in the preview iframe when Python/lxml is the root cause. */
+function buildPythonEnvErrorHtml(msg: string): string {
+    return `<!DOCTYPE html><html><body style="margin:0;font-family:sans-serif;background:#fff">
+<div style="padding:28px;max-width:540px">
+    <h2 style="color:#c0392b;margin:0 0 10px">⚠️ Python Environment Error</h2>
+    <p style="margin:0 0 16px;line-height:1.6;color:#333">
+        The transformation could not run because <strong>Python</strong> or the
+        <strong>lxml</strong> package was not found. Check your setup and try again.
+    </p>
+    <pre style="background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:12px;
+                font-size:12px;overflow:auto;white-space:pre-wrap;color:#555;margin-bottom:20px">${escForHtml(msg)}</pre>
+    <button onclick="window.parent.postMessage({command:'showSetup'},'*')"
+            style="background:#0e639c;color:#fff;border:none;padding:9px 18px;
+                   border-radius:4px;cursor:pointer;font-size:13px;font-weight:600">
+        ⚙️ Open Setup Guide
+    </button>
+</div>
+</body></html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
+    checkDependencies(context);
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('xslt-viewer.showSetup', () => showSetupForced(context))
+    );
 
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
     let replacePanel: vscode.WebviewPanel | undefined = undefined;
@@ -41,7 +89,9 @@ export function activate(context: vscode.ExtensionContext) {
             resultHtml = await runPythonTransformation(context, activeXml.getText(), instrumented);
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e);
-            resultHtml = `<h2 style="color:red">Transformation Error</h2><pre>${msg}</pre>`;
+            resultHtml = isPythonEnvError(msg)
+                ? buildPythonEnvErrorHtml(msg)
+                : `<h2 style="color:red;font-family:sans-serif;padding:16px">Transformation Error</h2><pre style="padding:0 16px;font-size:12px">${escForHtml(msg)}</pre>`;
         }
 
         const wrappedHtml = wrapForIframe(resultHtml);
@@ -164,6 +214,9 @@ export function activate(context: vscode.ExtensionContext) {
 
             currentPanel.webview.onDidReceiveMessage(async message => {
                 switch (message.command) {
+                    case 'showSetup':
+                        vscode.commands.executeCommand('xslt-viewer.showSetup');
+                        break;
                     case 'jumpToCode':
                         if (activeXslt) {
                             findAndJump(activeXslt, message);

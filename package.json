@@ -1,8 +1,13 @@
 {
   "name": "xslt-viewer-vs",
   "displayName": "XSLT Viewer for VS Code",
+  "publisher": "inuris",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inuris/xslt-viewer-vs"
+  },
   "description": "Preview XSLT transformations and manage embedded images",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -28,6 +33,10 @@
         "command": "xslt-viewer.exportPdf",
         "title": "Export Preview to PDF",
         "icon": "$(file-pdf)"
+      },
+      {
+        "command": "xslt-viewer.showSetup",
+        "title": "XSLT Viewer: Check Python & lxml Setup"
       }
     ],
 
