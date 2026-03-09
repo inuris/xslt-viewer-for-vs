@@ -8,7 +8,7 @@
   },
   "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
   "icon": "icon.png",
-  "version": "2.0.1",
+  "version": "2.0.0",
   "engines": {
     "vscode": "^1.96.0"
   },
