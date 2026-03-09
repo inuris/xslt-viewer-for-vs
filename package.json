@@ -8,7 +8,7 @@
   },
   "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
   "icon": "icon.png",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -41,7 +41,6 @@
         "title": "XSLT: Preview Transformation",
         "icon": "$(preview)"
       },
-
       {
         "command": "xslt-viewer.switchFile",
         "title": "Switch to Linked XML/XSLT",
@@ -57,8 +56,6 @@
         "title": "XSLT Viewer: Check Python & lxml Setup"
       }
     ],
-
-
     "configuration": {
       "title": "XSLT Viewer",
       "properties": {
