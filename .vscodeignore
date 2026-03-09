@@ -1,6 +1,6 @@
-out/**
 node_modules/**
 .vscode/**
 .git/**
 publish-env.bat
+
 
