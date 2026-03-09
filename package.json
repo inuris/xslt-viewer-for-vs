@@ -1,6 +1,11 @@
 {
   "name": "xslt-viewer-vs",
   "displayName": "XSLT Viewer for VS Code",
+  "publisher": "inuris",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inuris/xslt-viewer-vs"
+  },
   "description": "Preview XSLT transformations and manage embedded images",
   "version": "0.0.1",
   "engines": {
