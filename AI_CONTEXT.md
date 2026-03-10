@@ -18,7 +18,7 @@
 - **`images.ts`**: `scanImages()`, `handleSaveImage()`, `applyReplaceImage()`, `handleJumpToImage()` — base64 image scan, export, replace, and jump.
 - **`filePicker.ts`**: `pickWorkspaceFile()`, `updateXmlStylesheetLink()` — file picker and XML `<?xml-stylesheet href="...">` updates.
 - **`navigation.ts`**: `findAndJump()`, `showRange()` — click-to-jump from preview to XSLT source.
-- **`webview.ts`**: `getWebviewShell()`, `getReplaceImagePanelHtml()`, `getExportImagePanelHtml()`, `wrapForIframe()` — preview panel HTML (toolbar, zoom, path bar, image sidebar), image dialog panels, and iframe click/hover script injection.
+– **`webview.ts`**: `getWebviewShell(initialZoom)`, `getReplaceImagePanelHtml()`, `getExportImagePanelHtml()`, `wrapForIframe()` — preview panel HTML (toolbar, zoom, path bar, image sidebar), image dialog panels, and iframe click/hover script injection. `initialZoom` comes from the `xslt-viewer.previewZoom` setting.
 - **`formatter.ts`**: `formatXml()` — pure TypeScript XML/XSLT formatter registered as a VS Code document formatting provider for `xml` and `xsl` languages.
 - **`setup.ts`**: `checkDependencies()` / `showSetupForced()` — probes Python and lxml availability; opens a setup guide webview panel (`getSetupHtml`) if either is missing or when forced. Panel shows status badges, platform-specific install instructions, copy buttons, a "Check Again" action, a link to the `pythonPath` setting, and a collapsible **Diagnostic Log** showing the raw probe output for each command.
 - **`base64Preview.ts`**: `registerBase64Preview()` — registers InlayHintsProvider (compact label `[📷 24KB PNG]` before base64), HoverProvider (image preview on hover), and editor decorations (grayed-out styling on base64 spans) for XML/XSL documents.
@@ -38,6 +38,7 @@
 - **`package.json`**:
     - `xslt-viewer.pythonPath`: Path to the Python interpreter (default: `python`).
     - `xslt-viewer.formatIndentSize`: Number of spaces per indent level when formatting (default: `4`).
+    - `xslt-viewer.previewZoom`: Default preview zoom level (25/50/75/100). Updated automatically when the user changes the Zoom dropdown; stored per workspace.
     - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
@@ -107,7 +108,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 
 ## 3. Webview Shell Structure (`getWebviewShell`)
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
-- **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle.
+- **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
 - **Messages from Extension:** `update` (full refresh), `setSwitchLabel`, `setPath`.
 - **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`.

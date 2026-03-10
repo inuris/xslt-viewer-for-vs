@@ -2,7 +2,9 @@
  * Webview HTML shell and iframe content helpers for XSLT Preview panel.
  */
 
-export function getWebviewShell(): string {
+export function getWebviewShell(initialZoom: number = 100): string {
+    const zoomOptions = [25, 50, 75, 100] as const;
+    const safeZoom = zoomOptions.includes(initialZoom as any) ? initialZoom : 100;
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -155,10 +157,10 @@ export function getWebviewShell(): string {
         <div style="flex:1"></div>
         <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <select id="zoom-select" class="toolbar-zoom" aria-label="Zoom">
-                <option value="25">25%</option>
-                <option value="50">50%</option>
-                <option value="75">75%</option>
-                <option value="100" selected>100%</option>
+                <option value="25"${safeZoom === 25 ? ' selected' : ''}>25%</option>
+                <option value="50"${safeZoom === 50 ? ' selected' : ''}>50%</option>
+                <option value="75"${safeZoom === 75 ? ' selected' : ''}>75%</option>
+                <option value="100"${safeZoom === 100 ? ' selected' : ''}>100%</option>
             </select>
         </label>
         <button class="btn" onclick="toggleSidebar()">🖼️ Images</button>
@@ -185,6 +187,7 @@ export function getWebviewShell(): string {
         const zoomSelect = document.getElementById('zoom-select');
 
         function applyZoom() {
+            if (!frame || !zoomSelect) return;
             const pct = parseInt(zoomSelect.value, 10);
             const scale = pct / 100;
             try {
@@ -194,8 +197,17 @@ export function getWebviewShell(): string {
                 }
             } catch (e) {}
         }
-        zoomSelect.addEventListener('change', applyZoom);
-        frame.addEventListener('load', applyZoom);
+        if (zoomSelect) {
+            zoomSelect.value = '${safeZoom}';
+            zoomSelect.addEventListener('change', () => {
+                applyZoom();
+                const pct = parseInt(zoomSelect.value, 10);
+                post('setPreviewZoom', { zoom: pct });
+            });
+        }
+        if (frame) {
+            frame.addEventListener('load', applyZoom);
+        }
 
         window.addEventListener('message', event => {
             const msg = event.data;

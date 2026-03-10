@@ -68,6 +68,12 @@
           "type": "number",
           "default": 4,
           "description": "Number of spaces for indentation when formatting XML/XSLT."
+        },
+        "xslt-viewer.previewZoom": {
+          "type": "number",
+          "enum": [25, 50, 75, 100],
+          "default": 100,
+          "description": "Default zoom level for the XSLT Preview (percentage). The last used value is saved per workspace."
         }
       }
     },

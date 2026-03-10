@@ -208,7 +208,9 @@ export function activate(context: vscode.ExtensionContext) {
                 { enableScripts: true }
             );
 
-            currentPanel.webview.html = getWebviewShell();
+            const initialZoom =
+                vscode.workspace.getConfiguration('xslt-viewer').get<number>('previewZoom') ?? 100;
+            currentPanel.webview.html = getWebviewShell(initialZoom);
 
             currentPanel.onDidDispose(() => {
                 currentPanel = undefined;
@@ -232,6 +234,20 @@ export function activate(context: vscode.ExtensionContext) {
                             }
                         }
                         break;
+                    case 'setPreviewZoom': {
+                        const raw = Number(message.zoom);
+                        if (!Number.isNaN(raw)) {
+                            // Clamp to supported values and store globally so it persists across workspaces/sessions.
+                            const allowed = [25, 50, 75, 100];
+                            const nearest = allowed.reduce((best, v) =>
+                                Math.abs(v - raw) < Math.abs(best - raw) ? v : best
+                            , allowed[0]);
+                            vscode.workspace
+                                .getConfiguration('xslt-viewer')
+                                .update('previewZoom', nearest, vscode.ConfigurationTarget.Global);
+                        }
+                        break;
+                    }
                     case 'switchFile':
                         vscode.commands.executeCommand('xslt-viewer.switchFile');
                         break;
