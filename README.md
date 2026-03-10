@@ -1,78 +1,27 @@
 # XSLT Viewer for VS Code
 
-A powerful extension to preview XSLT transformations in real-time within Visual Studio Code.
+Preview XML and XSLT with interactive, real-time refresh; XML/XSLT formatter.
 
-## Features
+## Core features
 
-- **Real-time Preview**: See your XSLT changes instantly as you type (500 ms debounce).
-- **Auto-Detection**: Automatically detects linked XSLT stylesheets via `<?xml-stylesheet href="..." ?>` and auto-pairs on file switch.
-- **Source Mapping**: Click any element in the preview to jump to the corresponding line in your XSLT source code.
-- **Element Dimension Tooltip**: Hover over elements in the preview to see their rendered width × height.
-- **Zoom Control**: Scale the preview to 25 %, 50 %, 75 %, or 100 % from the toolbar dropdown.
-- **Path Bar & File Switch**: A path bar shows which file is currently being previewed. Click the **XSLT / XML** button (or use the `Switch to Linked XML/XSLT` command) to toggle between the paired XML and XSLT files in the editor.
-- **Embedded Image Manager**: The preview panel sidebar lists all base64-encoded images found in the active XML/XSLT with their format and byte size. From the sidebar you can:
-  - **Jump** — reveal the image in the editor.
-  - **Export** — save to a file or copy the raw base64 string.
-  - **Replace** — upload a new image file or paste a base64 string, with optional resize (width × height) and aspect-ratio lock.
-- **XML/XSLT Formatter**: Provides a document formatter for XML and XSL files (Format Document / `Shift+Alt+F`). Child tags are placed on new lines with configurable indentation; text content is preserved exactly.
-- **PDF Export**: Export the rendered preview to PDF by opening it in the system browser (`Ctrl+P` to print).
+- **Preview XML and XSLT with interactive, real-time refresh**
+  - Run XSLT on XML and see the rendered HTML update as you edit.
+  - Click elements in the preview to jump back to the corresponding XSLT line.
+  - Keep the preview fixed on the right while you edit on the left.
+
+- **XML & XSLT formatter**
+  - Use **Format Document** (`Shift+Alt+F` or right-click → **Format Document**) in any `.xml` or `.xsl`/`.xslt` file.
+  - Indents tags with a configurable indent size (`xslt-viewer.formatIndentSize`, default `4`).
+  - Preserves meaningful content while cleaning up structure.
+
+- **Quick image replace and PDF export**
+  - Detect embedded base64 images in the preview and:
+    - **Replace** them via file upload or pasted base64, with optional resize.
+    - **Export** images to files or copy their base64.
+  - **Export Preview to PDF**: open the rendered preview in your browser and print to PDF.
 
 ## Requirements
 
-This extension requires **Python** to be installed on your system.
-
-1. Python 3.x
-2. `lxml` library — install with:
-   ```
-   pip install lxml
-   ```
-
-> **Tip:** Run `install.bat` (Windows) to install all Node and Python dependencies in one step.
-
-## Keyboard Shortcut
-
-| Shortcut | Action |
-|---|---|
-| `Ctrl+Alt+X` / `Cmd+Alt+X` | Open / refresh XSLT Preview |
-| `Shift+Alt+F` | Format XML/XSLT document (VS Code default) |
-
-To open the setup page manually at any time, run **XSLT Viewer: Check Python & lxml Setup** from the Command Palette (`Ctrl+Shift+P`).
-
-## Extension Settings
-
-| Setting | Default | Description |
-|---|---|---|
-| `xslt-viewer.pythonPath` | `"python"` | Path to the Python interpreter (must have `lxml` installed). |
-| `xslt-viewer.formatIndentSize` | `4` | Number of spaces per indent level when formatting XML/XSLT. |
-
-## First-Run Setup Check
-
-When the extension activates it automatically checks whether Python and `lxml` are available. If either is missing a **Setup Guide** panel opens with:
-
-- Status badges showing which dependency is missing.
-- One-click platform-specific install instructions (Windows `winget`, macOS `brew`, Linux `apt`).
-- Copy buttons for every terminal command.
-- A **Check Again** button that re-runs the detection and closes the panel automatically once both dependencies are found.
-- An inline **Python path** input to set `xslt-viewer.pythonPath` directly in the setup panel (avoids opening the Settings UI).
-
-## Known Issues
-
-- Ensure `lxml` is installed in the Python environment pointed to by `xslt-viewer.pythonPath`.
-- XSLT features that rely on extension functions not supported by `lxml` may not render.
-
-## Release Notes
-
-### 0.1.0
-
-- **XML/XSLT Formatter**: Document formatter for XML and XSL files with configurable indent size.
-- **Image Export**: Save embedded base64 images to a file or copy the raw base64 string.
-- **Image Replace**: Replace embedded images by uploading a file or pasting base64; supports resize with aspect-ratio lock.
-- **Zoom Control**: Preview zoom dropdown (25 %, 50 %, 75 %, 100 %).
-- **Path Bar**: Shows the relative path of the currently previewed file with an inline Switch button.
-- **Hover Tooltip**: Displays element dimensions (W × H) on hover in the preview.
-- **Smart File Switching**: Toggle between XML and XSLT with the path-bar button, editor toolbar button, or keyboard command; label updates to reflect the opposite file.
-- **Layout Enforcement**: Preview panel stays pinned to the right column; any text editor opened in the right column is automatically moved to the left.
-
-### 0.0.1
-
-Initial release of XSLT Viewer for VS Code.
+- **Python 3** with the **lxml** library installed (used for running the XSLT transformation).
+  - In VS Code, open the Command Palette (Ctrl + Shift + P) and type **XSLT Viewer: Check Python & lxml Setup**.
+  - The **Quick Start** page will detect Python and `lxml` for you and show platform-specific install commands if anything is missing.

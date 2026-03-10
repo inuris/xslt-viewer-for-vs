@@ -6,15 +6,33 @@
     "type": "git",
     "url": "https://github.com/inuris/xslt-viewer-vs"
   },
-  "description": "Preview XSLT transformations and manage embedded images",
-  "version": "0.1.0",
+  "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
+  "icon": "icon.png",
+  "version": "2.0.0",
   "engines": {
     "vscode": "^1.96.0"
   },
   "categories": [
+    "Formatters",
     "Other"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "xslt",
+    "xml",
+    "xsl",
+    "formatter",
+    "preview",
+    "transform",
+    "images"
+  ],
+  "activationEvents": [
+    "onCommand:xslt-viewer.preview",
+    "onCommand:xslt-viewer.switchFile",
+    "onCommand:xslt-viewer.exportPdf",
+    "onCommand:xslt-viewer.showSetup",
+    "onLanguage:xml",
+    "onLanguage:xsl"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -23,7 +41,6 @@
         "title": "XSLT: Preview Transformation",
         "icon": "$(preview)"
       },
-
       {
         "command": "xslt-viewer.switchFile",
         "title": "Switch to Linked XML/XSLT",
@@ -39,8 +56,6 @@
         "title": "XSLT Viewer: Check Python & lxml Setup"
       }
     ],
-
-
     "configuration": {
       "title": "XSLT Viewer",
       "properties": {

@@ -84,7 +84,12 @@ function openOrRevealSetupPanel(context: vscode.ExtensionContext, result: Detect
 
     setupPanel.onDidDispose(() => { setupPanel = undefined; }, null, context.subscriptions);
 
-    setupPanel.webview.onDidReceiveMessage(async (msg: any) => {
+interface SetupMessage {
+    command: string;
+    pythonPath?: string;
+}
+
+setupPanel.webview.onDidReceiveMessage(async (msg: SetupMessage) => {
         if (msg.command === 'checkAgain') {
             if (setupPanel) setupPanel.webview.postMessage({ command: 'checking' });
             let didDispose = false;
