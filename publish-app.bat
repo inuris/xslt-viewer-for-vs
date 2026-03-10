@@ -25,28 +25,60 @@ echo Publishing with argument: "%ARG%" ...
 echo (If prompted about missing repository/license, the script will auto-answer 'y')
 echo.
 
-REM Load local publish environment if present (VSCODE_MARKETPLACE_TOKEN, etc.)
+REM Ensure vsce is installed
+where vsce >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [INFO] vsce not found. Installing globally with npm...
+    call npm install -g vsce
+    if %ERRORLEVEL% NEQ 0 (
+        echo.
+        echo [ERROR] Failed to install vsce via npm.
+        pause
+        exit /b %ERRORLEVEL%
+    )
+)
+
+REM Load local publish environment if present (VSCODE_MARKETPLACE_TOKEN, OVSX_PAT, etc.)
 if exist publish-env.bat (
     call publish-env.bat
 )
 
-REM Expect token in VSCODE_MARKETPLACE_TOKEN (do NOT commit the token)
+REM Expect both tokens (do NOT commit publish-env.bat)
 if "%VSCODE_MARKETPLACE_TOKEN%"=="" (
-    echo [ERROR] Please set VSCODE_MARKETPLACE_TOKEN environment variable.
+    echo [ERROR] Please set VSCODE_MARKETPLACE_TOKEN in publish-env.bat
+    pause
+    exit /b 1
+)
+if "%OVSX_PAT%"=="" (
+    echo [ERROR] Please set OVSX_PAT in publish-env.bat
     pause
     exit /b 1
 )
 
+echo.
+echo [1/2] Publishing to VS Code Marketplace...
 REM Pipe 'y' to auto-accept potential warnings about missing LICENSE/Repo
 echo y | call vsce publish %ARG% -p %VSCODE_MARKETPLACE_TOKEN%
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo [ERROR] Publishing failed.
+    echo [ERROR] VS Code Marketplace publish failed.
     pause
     exit /b %ERRORLEVEL%
 )
 
 echo.
-echo [SUCCESS] Published successfully!
+echo [2/2] Publishing to Open VSX (Eclipse / Cursor)...
+call npx ovsx publish -p %OVSX_PAT%
+
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo [ERROR] Open VSX publish failed.
+    pause
+    exit /b %ERRORLEVEL%
+)
+
+echo.
+echo [SUCCESS] Published to both VS Code Marketplace and Open VSX!
 pause
