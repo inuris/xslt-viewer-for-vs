@@ -200,6 +200,102 @@ function normalizeTagWhitespace(tagValue: string): string {
     return out.replace(/^[\t\n\r\f\v ]+|[\t\n\r\f\v ]+$/g, '');
 }
 
+/**
+ * Simple CSS formatter: one declaration per line, indent by brace depth, preserve comments and strings.
+ */
+function formatCss(css: string, indentSize: number): string {
+    const indentStr = ' '.repeat(indentSize);
+    const lines: string[] = [];
+    let depth = 0;
+    let i = 0;
+    const n = css.length;
+    let line = '';
+    let inString = '';
+    let inComment = false; // /* */
+
+    const flushLine = () => {
+        const t = line.trim();
+        if (t) lines.push(indentStr.repeat(depth) + t);
+        line = '';
+    };
+
+    while (i < n) {
+        const c = css[i];
+        const c2 = css.substr(i, 2);
+
+        if (inString) {
+            line += c;
+            if (c === '\\' && i + 1 < n) { line += css[++i]; i++; }
+            else if (c === inString) inString = '';
+            i++;
+            continue;
+        }
+        if (inComment) {
+            line += c;
+            if (c2 === '*/') { line += css[i + 1]; i += 2; inComment = false; }
+            else i++;
+            continue;
+        }
+
+        if (c2 === '/*') {
+            line += '/*';
+            i += 2;
+            inComment = true;
+            continue;
+        }
+        if ((c === '"' || c === "'") && !inString) {
+            inString = c;
+            line += c;
+            i++;
+            continue;
+        }
+
+        if (c === '{') {
+            line = line.trimEnd();
+            if (line) {
+                lines.push(indentStr.repeat(depth) + line.trim() + ' {');
+            } else {
+                lines.push(indentStr.repeat(depth) + '{');
+            }
+            line = '';
+            depth++;
+            i++;
+            continue;
+        }
+        if (c === '}') {
+            const t = line.trimEnd();
+            if (t) {
+                lines.push(indentStr.repeat(depth) + t);
+                line = '';
+            }
+            depth--;
+            if (depth < 0) depth = 0;
+            lines.push(indentStr.repeat(depth) + '}');
+            line = '';
+            i++;
+            continue;
+        }
+        if (c === ';') {
+            line += c;
+            flushLine();
+            i++;
+            continue;
+        }
+        if (c === '\n' || c === '\r') {
+            const t = line.trim();
+            if (t) lines.push(indentStr.repeat(depth) + t);
+            line = '';
+            i++;
+            continue;
+        }
+        line += c;
+        i++;
+    }
+    const t = line.trim();
+    if (t) lines.push(indentStr.repeat(depth) + t);
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 /** Normalize content: XML whitespace (tab, LF, CR, space) to single space; preserve one leading/trailing when present. Preserves &#160; (U+00A0). Aligns with XPath normalize-space(). */
 function collapseTextToLine(text: string): string {
     const hadLeading = text.length > 0 && ASCII_WS.test(text[0]);
@@ -249,7 +345,27 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 break;
             case TokenType.OpenTag: {
                 const { endIdx, isInline } = findMatchingClose(tokens, idx);
-                if (isInline) {
+                const tagName = t.tagName;
+                const isStyleBlock = tagName === 'style';
+                if (isInline && isStyleBlock) {
+                    // <style> with only text: format inner content as CSS
+                    let innerText = '';
+                    for (let j = idx + 1; j < endIdx; j++) {
+                        const inner = tokens[j];
+                        if (inner.type === TokenType.Text) innerText += inner.value;
+                    }
+                    const formattedCss = formatCss(innerText.trim(), indentSize);
+                    const baseIndent = indentStr.repeat(depth);
+                    const cssWithIndent = formattedCss
+                        ? formattedCss.split('\n').map((line) => baseIndent + line).join('\n')
+                        : '';
+                    if (!afterNewline) out.push('\n');
+                    out.push(baseIndent, normalizeTagWhitespace(t.value), '\n');
+                    if (cssWithIndent) out.push(cssWithIndent, '\n');
+                    out.push(baseIndent, normalizeTagWhitespace(tokens[endIdx].value));
+                    idx = endIdx;
+                    afterNewline = false;
+                } else if (isInline) {
                     if (!afterNewline) out.push('\n');
                     out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
                     for (let j = idx + 1; j < endIdx; j++) {
