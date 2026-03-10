@@ -21,6 +21,7 @@
 - **`webview.ts`**: `getWebviewShell()`, `getReplaceImagePanelHtml()`, `getExportImagePanelHtml()`, `wrapForIframe()` — preview panel HTML (toolbar, zoom, path bar, image sidebar), image dialog panels, and iframe click/hover script injection.
 - **`formatter.ts`**: `formatXml()` — pure TypeScript XML/XSLT formatter registered as a VS Code document formatting provider for `xml` and `xsl` languages.
 - **`setup.ts`**: `checkDependencies()` / `showSetupForced()` — probes Python and lxml availability; opens a setup guide webview panel (`getSetupHtml`) if either is missing or when forced. Panel shows status badges, platform-specific install instructions, copy buttons, a "Check Again" action, a link to the `pythonPath` setting, and a collapsible **Diagnostic Log** showing the raw probe output for each command.
+- **`base64Preview.ts`**: `registerBase64Preview()` — registers InlayHintsProvider (compact label `[📷 24KB PNG]` before base64), HoverProvider (image preview on hover), and editor decorations (grayed-out styling on base64 spans) for XML/XSL documents.
 
 ### B. Transformation Backend
 **File:** `src/python/transform.py`

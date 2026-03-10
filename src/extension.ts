@@ -9,6 +9,7 @@ import { findAndJump } from './navigation';
 import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wrapForIframe } from './webview';
 import { formatXml } from './formatter';
 import { checkDependencies, showSetupForced } from './setup';
+import { registerBase64Preview } from './base64Preview';
 
 // ─── Transformation error helpers ────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ function buildPythonEnvErrorHtml(msg: string): string {
 export function activate(context: vscode.ExtensionContext) {
     console.log('XSLT Viewer is active');
     checkDependencies(context);
+    registerBase64Preview(context);
 
     context.subscriptions.push(
         vscode.commands.registerCommand('xslt-viewer.showSetup', () => showSetupForced(context))
