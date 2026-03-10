@@ -4,6 +4,16 @@ echo ==========================================
 echo  XSLT Viewer - Publisher Tool
 echo ==========================================
 echo.
+
+REM Read current version from package.json using Node (required for this script)
+for /f "delims=" %%v in ('node -p "require('./package.json').version"') do set CUR_VERSION=%%v
+if "%CUR_VERSION%"=="" (
+    echo [WARN] Could not read version from package.json
+) else (
+    echo Current version: %CUR_VERSION%
+)
+echo.
+
 echo Select update type:
 echo 1. Patch (0.0.1 - 0.0.2) [Default]
 echo 2. Minor (0.0.1 - 0.1.0)
