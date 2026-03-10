@@ -208,8 +208,12 @@ export function activate(context: vscode.ExtensionContext) {
                 { enableScripts: true }
             );
 
-            const initialZoom =
-                vscode.workspace.getConfiguration('xslt-viewer').get<number>('previewZoom') ?? 100;
+            // Read only the **user** (Global) value for previewZoom, ignoring any workspace override.
+            const inspected = vscode.workspace
+                .getConfiguration()
+                .inspect<number>('xslt-viewer.previewZoom');
+            const initialZoom = inspected?.globalValue ?? inspected?.defaultValue ?? 100;
+
             currentPanel.webview.html = getWebviewShell(initialZoom);
 
             currentPanel.onDidDispose(() => {
@@ -234,20 +238,6 @@ export function activate(context: vscode.ExtensionContext) {
                             }
                         }
                         break;
-                    case 'setPreviewZoom': {
-                        const raw = Number(message.zoom);
-                        if (!Number.isNaN(raw)) {
-                            // Clamp to supported values and store globally so it persists across workspaces/sessions.
-                            const allowed = [25, 50, 75, 100];
-                            const nearest = allowed.reduce((best, v) =>
-                                Math.abs(v - raw) < Math.abs(best - raw) ? v : best
-                            , allowed[0]);
-                            vscode.workspace
-                                .getConfiguration('xslt-viewer')
-                                .update('previewZoom', nearest, vscode.ConfigurationTarget.Global);
-                        }
-                        break;
-                    }
                     case 'switchFile':
                         vscode.commands.executeCommand('xslt-viewer.switchFile');
                         break;
@@ -368,9 +358,10 @@ export function activate(context: vscode.ExtensionContext) {
             const group = vscode.window.tabGroups.activeTabGroup;
             if (group.viewColumn !== vscode.ViewColumn.Two) return;
             // A text editor became active in the right pane; move it to the left
+            // and keep focus on the preview/webview in the right pane.
             vscode.window.showTextDocument(editor.document, {
                 viewColumn: vscode.ViewColumn.One,
-                preserveFocus: false,
+                preserveFocus: true,
             });
         })
     );
