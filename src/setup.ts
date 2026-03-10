@@ -84,7 +84,7 @@ function openOrRevealSetupPanel(context: vscode.ExtensionContext, result: Detect
 
     setupPanel.onDidDispose(() => { setupPanel = undefined; }, null, context.subscriptions);
 
-    setupPanel.webview.onDidReceiveMessage(async (msg: { command: string }) => {
+    setupPanel.webview.onDidReceiveMessage(async (msg: any) => {
         if (msg.command === 'checkAgain') {
             if (setupPanel) setupPanel.webview.postMessage({ command: 'checking' });
             let didDispose = false;
@@ -213,18 +213,40 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
     const { hasPython, hasLxml, pythonPath } = result;
     const allGood = hasPython && hasLxml;
 
-    const pythonStep = hasPython ? '' : step(1, 'Install Python 3', getPythonInstallBody(platform));
-    const lxmlStep = hasLxml ? '' : step(hasPython ? 1 : 2, 'Install the <code>lxml</code> package', getLxmlInstallBody(platform, hasPython), !hasPython);
     const pathPlaceholder = platform === 'win' ? 'python' : 'python3';
-    const pathStep = step(hasPython ? (hasLxml ? 1 : 2) : 3,
-        'Custom Python path? <span class="optional">(optional)</span>',
-        `<p>If Python is not on your system PATH, enter the full path to the interpreter:</p>
-        <div class="path-input-row">
-            <input type="text" id="python-path-input" class="path-input" value="${escAttr(pythonPath)}" placeholder="${pathPlaceholder}">
-            <button class="action-btn primary" onclick="savePath()">Save</button>
+
+    // Step 1: Python – when missing, show both install + custom path; hide completely once resolved.
+    const pythonStep = hasPython
+        ? ''
+        : step(
+            1,
+            'Python 3',
+            `
+        <div class="sub-section">
+            <div class="sub-title">1. Install Python 3</div>
+            ${getPythonInstallBody(platform)}
         </div>
-        <p class="alt">Use <code>python</code> or <code>python3</code> if it is on your PATH.</p>`
-    );
+        <div class="sub-separator"></div>
+        <div class="sub-section">
+            <div class="sub-title">2. Or set a custom Python path</div>
+            <p>If you already installed Python but it is not on your PATH, point XSLT Viewer to the full interpreter path:</p>
+            <div class="path-input-row">
+                <input type="text" id="python-path-input" class="path-input" value="${escAttr(pythonPath)}" placeholder="${pathPlaceholder}">
+                <button class="action-btn primary" onclick="savePath()">Save</button>
+            </div>
+            <p class="alt">Example: <code>C:\\Python312\\python.exe</code> on Windows or <code>/usr/local/bin/python3</code> on macOS/Linux.</p>
+        </div>`
+        );
+
+    // Step 2 (or 1 when Python is already OK): lxml
+    const lxmlStep = hasLxml
+        ? ''
+        : step(
+            hasPython ? 1 : 2,
+            'Install the <code>lxml</code> package',
+            getLxmlInstallBody(platform, hasPython),
+            !hasPython
+        );
 
     const diagSection = `
     <details class="diag-details">
@@ -353,7 +375,7 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
     .action-btn.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: 1px solid var(--vscode-button-border, transparent); }
     .action-btn.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
 
-    /* ── Path input ── */
+    /* ── Path / sub-sections ── */
     .path-input-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
     .path-input {
         flex: 1;
@@ -365,6 +387,19 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
         color: var(--vscode-input-foreground);
         border: 1px solid var(--vscode-input-border);
         border-radius: 4px;
+    }
+    .sub-section { margin-bottom: 10px; }
+    .sub-title {
+        font-weight: 600;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: var(--vscode-foreground);
+    }
+    .sub-separator {
+        height: 1px;
+        background: var(--vscode-widget-border);
+        opacity: 0.4;
+        margin: 10px 0;
     }
 
     /* ── Diagnostic log ── */
@@ -398,26 +433,19 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
     .diag-ok   { color: #4caf50; font-weight: 700; }
     .diag-fail { color: #e05252; font-weight: 700; }
 
-    /* ── All-good state ── */
-    .all-good { text-align: center; padding: 48px 0 32px; }
-    .all-good .big { font-size: 48px; margin-bottom: 16px; }
-    .all-good p { color: var(--vscode-descriptionForeground); margin-bottom: 8px; }
 </style>
 </head>
 <body>
 
-${allGood ? `
-<div class="all-good">
-    <div class="big">✅</div>
-    <h2 style="margin-bottom:8px">All set!</h2>
-    <p>Python and lxml are installed. XSLT Viewer is ready to use.</p>
-</div>
-` : `
 <div class="header">
     <div class="header-icon">⚙️</div>
     <div>
         <div class="header-title">XSLT Viewer — Quick Setup</div>
-        <div class="header-sub">This extension needs Python 3 + the <code>lxml</code> package to run transformations.</div>
+        <div class="header-sub">${
+            allGood
+                ? 'All checks passed. Python 3 and the lxml package are ready to use.'
+                : 'This extension needs Python 3 + the <code>lxml</code> package to run transformations.'
+        }</div>
     </div>
 </div>
 
@@ -430,13 +458,15 @@ ${allGood ? `
 
 ${pythonStep}
 ${lxmlStep}
-${pathStep}
 
 <div class="actions">
-    <button class="action-btn primary" id="btn-check" onclick="startCheck()">⟳ Check Again</button>
-    <span style="font-size:12px; color:var(--vscode-descriptionForeground)">After installing, click to re-verify.</span>
+    <button class="action-btn primary" id="btn-check" onclick="startCheck()">⟳ ${allGood ? 'Run Check Again' : 'Check Again'}</button>
+    <span style="font-size:12px; color:var(--vscode-descriptionForeground)">${
+        allGood
+            ? 'You can re-run the check any time if you change environments.'
+            : 'After installing, click to re-verify.'
+    }</span>
 </div>
-`}
 
 ${diagSection}
 
