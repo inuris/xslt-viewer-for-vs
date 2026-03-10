@@ -141,8 +141,8 @@ export function getWebviewShell(): string {
         }
         .info { flex: 1; min-width: 0; font-size: 11px; }
         .info div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .actions { display: flex; flex-direction: column; gap: 4px; justify-content: center; }
-        .mini-btn { font-size: 10px; padding: 2px 5px; cursor: pointer; border:none; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 2px; }
+        .actions { display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: flex-start; }
+        .mini-btn { font-size: 10px; padding: 2px 5px; cursor: pointer; border:none; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 2px; text-align: left; }
     </style>
 </head>
 <body>
@@ -247,8 +247,8 @@ export function getWebviewShell(): string {
                         <div class="img-dimensions">—</div>
                     </div>
                     <div class="actions">
-                        <button class="mini-btn" onclick="exportImg(\${i})">Export</button>
-                        <button class="mini-btn" onclick="replaceImg(\${i})">🔄️Replace</button>
+                        <button class="mini-btn" onclick="exportImg(\${i})">💾 Export</button>
+                        <button class="mini-btn" onclick="replaceImg(\${i})">🔄 Replace</button>
                     </div>
                 </div>
              \`).join('');
@@ -332,7 +332,7 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
     </div>
     <div class="actions">
         <button type="button" class="btn btn-secondary" id="btn-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="btn-insert">Insert</button>
+        <button type="button" class="btn btn-primary" id="btn-insert">Replace</button>
     </div>
     <script>
         const vscode = acquireVsCodeApi();
@@ -358,24 +358,22 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
         }
 
+        // Load the original image that currently exists in the document.
         function loadOldImageAndFillDims(dataUri) {
             const img = new Image();
             img.onload = function() {
                 state.origW = img.naturalWidth;
                 state.origH = img.naturalHeight;
-                state.ratio = state.origW / state.origH;
-                state.originalImageW = img.naturalWidth;
-                state.originalImageH = img.naturalHeight;
-                state.newDataUri = dataUri;
                 document.getElementById('dims-section').classList.remove('hidden');
                 document.getElementById('width-px').value = state.origW;
                 document.getElementById('height-px').value = state.origH;
                 updateDimsInfo();
             };
-            img.onerror = function() { state.newDataUri = null; };
+            img.onerror = function() { state.origW = 0; state.origH = 0; updateDimsInfo(); };
             img.src = dataUri;
         }
 
+        // Load the NEW image (upload / pasted) and initialize the width/height boxes.
         function setNewImageOnly(dataUri) {
             state.newDataUri = dataUri;
             document.getElementById('dims-section').classList.remove('hidden');
@@ -384,8 +382,23 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 state.originalImageW = img.naturalWidth;
                 state.originalImageH = img.naturalHeight;
                 state.ratio = state.originalImageW / state.originalImageH;
-                if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
-                else updateDimsInfo();
+
+                let targetW = state.originalImageW;
+                let targetH = state.originalImageH;
+
+                // If we know the original image size and maintain-ratio is on,
+                // fit the NEW image into the ORIGINAL bounding box without oversizing.
+                if (state.origW > 0 && state.origH > 0 && document.getElementById('maintain-ratio').checked) {
+                    const scaleW = state.origW / state.originalImageW;
+                    const scaleH = state.origH / state.originalImageH;
+                    const scale = Math.min(scaleW, scaleH, 1); // never upscale beyond 100%
+                    targetW = Math.round(state.originalImageW * scale);
+                    targetH = Math.round(state.originalImageH * scale);
+                }
+
+                document.getElementById('width-px').value = targetW;
+                document.getElementById('height-px').value = targetH;
+                updateDimsInfo();
             };
             img.onerror = function() { state.originalImageW = 0; state.originalImageH = 0; updateDimsInfo(); };
             img.src = dataUri;
@@ -394,23 +407,22 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         function updateDimsInfo() {
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
-            const origStr = (state.originalImageW && state.originalImageH) ? (state.originalImageW + '×' + state.originalImageH) : '—';
+            const origStr = (state.origW && state.origH) ? (state.origW + '×' + state.origH) : '—';
             document.getElementById('dims-info').textContent = 'Original: ' + origStr + ' | New: ' + w + '×' + h;
         }
 
-        function applyFitDimensions() {
-            if (!state.originalImageW || !state.originalImageH) return;
-            const maxW = parseInt(document.getElementById('width-px').value, 10) || 0;
-            const maxH = parseInt(document.getElementById('height-px').value, 10) || 0;
-            if (maxW <= 0 || maxH <= 0) return;
-            var scaleW = maxW / state.originalImageW;
-            var scaleH = maxH / state.originalImageH;
-            var scale = Math.min(scaleW, scaleH);
-            var newW = Math.round(state.originalImageW * scale);
-            var newH = Math.round(state.originalImageH * scale);
-            document.getElementById('width-px').value = newW;
-            document.getElementById('height-px').value = newH;
-            updateDimsInfo();
+        function updateHeightFromWidth() {
+            const w = parseInt(document.getElementById('width-px').value, 10) || 0;
+            if (!state.ratio || w <= 0) return;
+            const h = Math.max(1, Math.round(w / state.ratio));
+            document.getElementById('height-px').value = h;
+        }
+
+        function updateWidthFromHeight() {
+            const h = parseInt(document.getElementById('height-px').value, 10) || 0;
+            if (!state.ratio || h <= 0) return;
+            const w = Math.max(1, Math.round(h * state.ratio));
+            document.getElementById('width-px').value = w;
         }
 
         document.getElementById('btn-upload').onclick = function() {
@@ -423,16 +435,29 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         };
 
         document.getElementById('width-px').oninput = function() {
-            if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
-            else updateDimsInfo();
+            if (document.getElementById('maintain-ratio').checked) {
+                updateHeightFromWidth();
+            }
+            updateDimsInfo();
         };
         document.getElementById('height-px').oninput = function() {
-            if (document.getElementById('maintain-ratio').checked) applyFitDimensions();
-            else updateDimsInfo();
+            if (document.getElementById('maintain-ratio').checked) {
+                updateWidthFromHeight();
+            }
+            updateDimsInfo();
         };
         document.getElementById('maintain-ratio').onchange = function() {
-            if (this.checked) applyFitDimensions();
-            else updateDimsInfo();
+            if (this.checked) {
+                // When turning ratio back on, snap the other dimension to match the current one.
+                const w = parseInt(document.getElementById('width-px').value, 10) || 0;
+                const h = parseInt(document.getElementById('height-px').value, 10) || 0;
+                if (w > 0) {
+                    updateHeightFromWidth();
+                } else if (h > 0) {
+                    updateWidthFromHeight();
+                }
+            }
+            updateDimsInfo();
         };
 
         document.getElementById('btn-cancel').onclick = function() {
