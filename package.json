@@ -8,7 +8,7 @@
   },
   "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
   "icon": "icon.png",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -25,15 +25,15 @@
     "transform",
     "images"
   ],
-    "activationEvents": [
-      "onCommand:xslt-viewer.preview",
-      "onCommand:xslt-viewer.switchFile",
-      "onCommand:xslt-viewer.exportPdf",
-      "onCommand:xslt-viewer.showSetup",
-      "onCommand:xslt-viewer.showSnippets",
-      "onLanguage:xml",
-      "onLanguage:xsl"
-    ],
+  "activationEvents": [
+    "onCommand:xslt-viewer.preview",
+    "onCommand:xslt-viewer.switchFile",
+    "onCommand:xslt-viewer.exportPdf",
+    "onCommand:xslt-viewer.showSetup",
+    "onCommand:xslt-viewer.showSnippets",
+    "onLanguage:xml",
+    "onLanguage:xsl"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -76,7 +76,12 @@
         },
         "xslt-viewer.previewZoom": {
           "type": "number",
-          "enum": [25, 50, 75, 100],
+          "enum": [
+            25,
+            50,
+            75,
+            100
+          ],
           "default": 100,
           "description": "Default zoom level for the XSLT Preview (percentage). The last used value is saved per workspace."
         },
