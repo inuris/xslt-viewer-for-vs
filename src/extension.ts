@@ -31,6 +31,54 @@ function escForHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ─── XSLT Snippets (Markdown .md file) ───────────────────────────────────────
+
+interface XsltSnippetEntry {
+    label: string;
+    detail?: string;
+    body: string;
+}
+
+/** Parse Markdown snippet file: ## Label, optional detail, then ```xml or ```xsl code block. Body gets syntax highlighting in the IDE. */
+function parseSnippetMd(raw: string): XsltSnippetEntry[] {
+    const out: XsltSnippetEntry[] = [];
+    const re = /^##\s+(.+)$\r?\n([\s\S]*?)^```(?:xml|xsl)?\s*\r?\n([\s\S]*?)^```/gm;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(raw)) !== null) {
+        const label = m[1].trim();
+        const detailBlock = m[2].trim();
+        const detail = detailBlock.split(/\r?\n/)[0]?.trim() || undefined;
+        const body = m[3].replace(/\r\n/g, '\n').trimEnd();
+        if (label) out.push({ label, detail, body });
+    }
+    return out;
+}
+
+function loadXsltSnippets(context: vscode.ExtensionContext): XsltSnippetEntry[] {
+    const config = vscode.workspace.getConfiguration('xslt-viewer');
+    const customPath = config.get<string>('snippetsFile')?.trim();
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+    let filePath: string;
+    if (customPath) {
+        filePath = path.isAbsolute(customPath) ? customPath : path.join(workspaceRoot, customPath);
+        if (!path.extname(filePath)) filePath = filePath + '.md';
+    } else {
+        filePath = path.join(context.extensionPath, 'src', 'snippets', 'xslt-snippets.md');
+    }
+
+    try {
+        if (!fs.existsSync(filePath)) return [];
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        return parseSnippetMd(raw);
+    } catch (e) {
+        console.warn('XSLT Viewer: failed to load snippets from', filePath, e);
+        return [];
+    }
+}
+
+// ─── Transformation error helpers ────────────────────────────────────────────
+
 /** Error page rendered in the preview iframe when Python/lxml is the root cause. */
 function buildPythonEnvErrorHtml(msg: string): string {
     return `<!DOCTYPE html><html><body style="margin:0;font-family:sans-serif;background:#fff">
@@ -60,6 +108,50 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('xslt-viewer.showSetup', () => showSetupForced(context))
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('xslt-viewer.showSnippets', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showInformationMessage('No active editor to insert a snippet into.');
+                return;
+            }
+
+            const languageId = editor.document.languageId;
+            if (languageId !== 'xsl' && languageId !== 'xml') {
+                vscode.window.showInformationMessage('XSLT snippets are only available in XML / XSLT files.');
+                return;
+            }
+
+            const snippets = loadXsltSnippets(context);
+            if (snippets.length === 0) {
+                vscode.window.showWarningMessage(
+                    'No XSLT snippets found. Edit src/snippets/xslt-snippets.md or set xslt-viewer.snippetsFile.'
+                );
+                return;
+            }
+
+            const items: vscode.QuickPickItem[] = snippets.map(s => ({
+                label: s.label,
+                detail: s.detail ?? '',
+            }));
+
+            const picked = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select an XSLT snippet to insert',
+                matchOnDetail: true,
+            });
+            if (!picked) return;
+
+            const snippet = snippets.find(s => s.label === picked.label);
+            if (!snippet?.body) return;
+
+            await editor.edit(editBuilder => {
+                for (const sel of editor.selections) {
+                    editBuilder.insert(sel.active, snippet.body);
+                }
+            });
+        })
     );
 
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
@@ -208,7 +300,13 @@ export function activate(context: vscode.ExtensionContext) {
                 { enableScripts: true }
             );
 
-            currentPanel.webview.html = getWebviewShell();
+            // Read only the **user** (Global) value for previewZoom, ignoring any workspace override.
+            const inspected = vscode.workspace
+                .getConfiguration()
+                .inspect<number>('xslt-viewer.previewZoom');
+            const initialZoom = inspected?.globalValue ?? inspected?.defaultValue ?? 100;
+
+            currentPanel.webview.html = getWebviewShell(initialZoom);
 
             currentPanel.onDidDispose(() => {
                 currentPanel = undefined;
@@ -352,9 +450,10 @@ export function activate(context: vscode.ExtensionContext) {
             const group = vscode.window.tabGroups.activeTabGroup;
             if (group.viewColumn !== vscode.ViewColumn.Two) return;
             // A text editor became active in the right pane; move it to the left
+            // and keep focus on the preview/webview in the right pane.
             vscode.window.showTextDocument(editor.document, {
                 viewColumn: vscode.ViewColumn.One,
-                preserveFocus: false,
+                preserveFocus: true,
             });
         })
     );

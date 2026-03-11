@@ -8,7 +8,7 @@
   },
   "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
   "icon": "icon.png",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -25,14 +25,15 @@
     "transform",
     "images"
   ],
-  "activationEvents": [
-    "onCommand:xslt-viewer.preview",
-    "onCommand:xslt-viewer.switchFile",
-    "onCommand:xslt-viewer.exportPdf",
-    "onCommand:xslt-viewer.showSetup",
-    "onLanguage:xml",
-    "onLanguage:xsl"
-  ],
+    "activationEvents": [
+      "onCommand:xslt-viewer.preview",
+      "onCommand:xslt-viewer.switchFile",
+      "onCommand:xslt-viewer.exportPdf",
+      "onCommand:xslt-viewer.showSetup",
+      "onCommand:xslt-viewer.showSnippets",
+      "onLanguage:xml",
+      "onLanguage:xsl"
+    ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -54,6 +55,10 @@
       {
         "command": "xslt-viewer.showSetup",
         "title": "XSLT Viewer: Check Python & lxml Setup"
+      },
+      {
+        "command": "xslt-viewer.showSnippets",
+        "title": "XSLT: Insert Snippet"
       }
     ],
     "configuration": {
@@ -68,6 +73,17 @@
           "type": "number",
           "default": 4,
           "description": "Number of spaces for indentation when formatting XML/XSLT."
+        },
+        "xslt-viewer.previewZoom": {
+          "type": "number",
+          "enum": [25, 50, 75, 100],
+          "default": 100,
+          "description": "Default zoom level for the XSLT Preview (percentage). The last used value is saved per workspace."
+        },
+        "xslt-viewer.snippetsFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a custom XSLT snippets file (Markdown .md, see src/snippets/README.md). Leave empty to use built-in src/snippets/xslt-snippets.md."
         }
       }
     },
@@ -82,6 +98,13 @@
           "command": "xslt-viewer.switchFile",
           "group": "navigation",
           "when": "resourceLangId == xml || resourceLangId == xsl"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "xslt-viewer.showSnippets",
+          "group": "navigation@9",
+          "when": "editorLangId == xsl || resourceExtname =~ /\\.xsl|\\.xslt|\\.xml$/"
         }
       ],
       "explorer/context": [
