@@ -4,21 +4,19 @@ Preview XML and XSLT with interactive, real-time refresh; XML/XSLT formatter.
 
 ## Core features
 
-- **Preview XML and XSLT with interactive, real-time refresh**
-  - Run XSLT on XML and see the rendered HTML update as you edit.
-  - Click elements in the preview to jump back to the corresponding XSLT line.
-  - Keep the preview fixed on the right while you edit on the left.
+- **Live in-editor XSLT preview** – run XML + XSLT and see the result directly in a VS Code panel, no browser needed.  
+  `![XSLT live preview](assets/xslt-preview.gif)`
 
-- **XML & XSLT formatter**
-  - Use **Format Document** (`Shift+Alt+F` or right-click → **Format Document**) in any `.xml` or `.xsl`/`.xslt` file.
-  - Indents tags with a configurable indent size (`xslt-viewer.formatIndentSize`, default `4`).
-  - Preserves meaningful content while cleaning up structure.
+- **Click-to-jump from preview to XSLT** – click in the rendered HTML to jump to the exact XSLT line that produced it.  
+  `![Click preview to jump to XSLT](assets/xslt-click.gif)`
 
-- **Quick image replace and PDF export**
-  - Detect embedded base64 images in the preview and:
-    - **Replace** them via file upload or pasted base64, with optional resize.
-    - **Export** images to files or copy their base64.
-  - **Export Preview to PDF**: open the rendered preview in your browser and print to PDF.
+- **Embedded image sidebar (export & replace)** – list, export, and swap base64 images (backgrounds, logos, etc.) in one click.  
+  `![Manage embedded images](assets/xslt-image.gif)`
+
+Other capabilities:
+
+- XML & XSLT formatter (Format Document) with configurable indent (`xslt-viewer.formatIndentSize`).
+- Export preview to browser / PDF.
 
 ## Requirements
 
