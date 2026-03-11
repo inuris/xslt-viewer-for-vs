@@ -39,7 +39,7 @@ Add Debug information to XSLT
 
 ---
 
-## Add XML - MDVQHNSach
+## Add XML - NMua/MDVQHNSach
 Add XML: Ma don vi quan he ngan sach
 
 ```xml
@@ -54,3 +54,257 @@ Add XML: Ma don vi quan he ngan sach
 ```
 
 ---
+
+## Add XML - NBan/Ten
+Add XML: Seller name (`NBan/Ten`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/Ten != ''">
+        <xsl:value-of select="../../NBan/Ten"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/MST
+Add XML: Seller tax code (`NBan/MST`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/MST != ''">
+        <xsl:value-of select="../../NBan/MST"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/DChi
+Add XML: Seller address (`NBan/DChi`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/DChi != ''">
+        <xsl:value-of select="../../NBan/DChi"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/SDThoai
+Add XML: Seller phone (`NBan/SDThoai`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/SDThoai != ''">
+        <xsl:value-of select="../../NBan/SDThoai"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/Fax
+Add XML: Seller fax (`NBan/Fax`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/Fax != ''">
+        <xsl:value-of select="../../NBan/Fax"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/STKNHang
+Add XML: Seller bank account (`NBan/STKNHang`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/STKNHang != ''">
+        <xsl:value-of select="../../NBan/STKNHang"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NBan/TNHang
+Add XML: Seller bank name (`NBan/TNHang`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NBan/TNHang != ''">
+        <xsl:value-of select="../../NBan/TNHang"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/SHChieu
+Add XML: Buyer passport (`NMua/SHChieu`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/SHChieu != ''">
+        <xsl:value-of select="../../NMua/SHChieu"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/CCCDan
+Add XML: Buyer ID card (`NMua/CCCDan`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/CCCDan != ''">
+        <xsl:value-of select="../../NMua/CCCDan"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/Ten
+Add XML: Buyer company name (`NMua/Ten`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/Ten != ''">
+        <xsl:value-of select="../../NMua/Ten"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/HVTNMHang
+Add XML: Buyer full name (`NMua/HVTNMHang`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/HVTNMHang != ''">
+        <xsl:value-of select="../../NMua/HVTNMHang"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/MST
+Add XML: Buyer tax code (`NMua/MST`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/MST != ''">
+        <xsl:value-of select="../../NMua/MST"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/DChi
+Add XML: Buyer address (`NMua/DChi`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/DChi != ''">
+        <xsl:value-of select="../../NMua/DChi"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/MKHang
+Add XML: Buyer code (`NMua/MKHang`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/MKHang != ''">
+        <xsl:value-of select="../../NMua/MKHang"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/DCTDTu
+Add XML: Buyer email (`NMua/DCTDTu`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/DCTDTu != ''">
+        <xsl:value-of select="../../NMua/DCTDTu"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add XML - NMua/SDThoai
+Add XML: Buyer phone (`NMua/SDThoai`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/SDThoai != ''">
+        <xsl:value-of select="../../NMua/SDThoai"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
