@@ -23,7 +23,12 @@
 - **`setup.ts`**: `checkDependencies()` / `showSetupForced()` — probes Python and lxml availability; opens a setup guide webview panel (`getSetupHtml`) if either is missing or when forced. Panel shows status badges, platform-specific install instructions, copy buttons, a "Check Again" action, a link to the `pythonPath` setting, and a collapsible **Diagnostic Log** showing the raw probe output for each command.
 - **`base64Preview.ts`**: `registerBase64Preview()` — registers InlayHintsProvider (compact label `[📷 24KB PNG]` before base64), HoverProvider (image preview on hover), and editor decorations (grayed-out styling on base64 spans) for XML/XSL documents.
 
-### B. Transformation Backend
+### B. Project structure (under `src/`)
+- **TypeScript:** `extension.ts`, `webview.ts`, `formatter.ts`, `setup.ts`, `transformation.ts`, `images.ts`, `filePicker.ts`, `navigation.ts`, `base64Preview.ts` — compiled to `out/`.
+- **Python:** `src/python/transform.py` — transformation engine; shipped as-is.
+- **Snippets:** `src/snippets/xslt-snippets.md` + `src/snippets/README.md` — XSLT snippet definitions (Markdown); read at runtime. Keeps all extension assets under `src/` for easier management.
+
+### C. Transformation Backend
 **File:** `src/python/transform.py`
 **Description:** A standalone Python script acting as the transformation engine.
 - **Dependencies:** `lxml` (Required).
@@ -34,12 +39,13 @@
     - Handles encoding/decoding to avoid UTF-8 issues.
     - Returns the rendered result or exits with error code 1.
 
-### C. Configuration & Setup
+### D. Configuration & Setup
 - **`package.json`**:
     - `xslt-viewer.pythonPath`: Path to the Python interpreter (default: `python`).
     - `xslt-viewer.formatIndentSize`: Number of spaces per indent level when formatting (default: `4`).
-    - `xslt-viewer.previewZoom`: Default preview zoom level (25/50/75/100). Updated automatically when the user changes the Zoom dropdown; stored per workspace.
-    - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`.
+    - `xslt-viewer.previewZoom`: Default preview zoom level (25/50/75/100). Read from user settings only.
+    - `xslt-viewer.snippetsFile`: Optional path to a custom XSLT snippets file (Markdown .md); empty = use built-in `src/snippets/xslt-snippets.md`.
+    - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`, `xslt-viewer.showSnippets`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
 
@@ -103,8 +109,9 @@ The extension attempts to intelligently pair XML and XSLT files:
 ### 7. PDF Export
 - **Command:** `xslt-viewer.exportPdf` — re-runs transformation (without instrumentation), writes HTML to a temp file, opens in the system browser for `Ctrl+P` printing.
 
-### 8. Layout Management
+### 8. Layout Management & Snippets
 - **Behavior:** Preview panel opens in `ViewColumn.Two`. When any text editor appears in `ViewColumn.Two`, it is automatically moved to `ViewColumn.One` to keep the preview pane clean.
+- **Context menu:** The editor context menu for XML/XSLT files exposes `XSLT: Insert Snippet` (`xslt-viewer.showSnippets`), which opens a Quick Pick of XSLT templates and inserts the chosen snippet at the cursor. Snippets are loaded from `src/snippets/xslt-snippets.md` (Markdown with `` ```xml `` / `` ```xsl `` code blocks for IDE highlighting) or from `xslt-viewer.snippetsFile`. See `src/snippets/README.md` for the format.
 
 ## 3. Webview Shell Structure (`getWebviewShell`)
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
