@@ -1,6 +1,6 @@
 {
   "name": "xslt-viewer-vs",
-  "displayName": "XSLT Viewer for VS Code",
+  "displayName": "XSLT Viewer",
   "publisher": "inuris",
   "repository": {
     "type": "git",
