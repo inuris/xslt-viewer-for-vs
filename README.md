@@ -4,14 +4,17 @@ Preview XML and XSLT with interactive, real-time refresh; XML/XSLT formatter.
 
 ## Core features
 
-- **Live in-editor XSLT preview** – run XML + XSLT and see the result directly in a VS Code panel, no browser needed.  
-  `![XSLT live preview](assets/xslt-preview.gif)`
+- **Live in-editor XSLT preview** – run XML + XSLT and see the result directly in a VS Code panel, no browser needed.
 
-- **Click-to-jump from preview to XSLT** – click in the rendered HTML to jump to the exact XSLT line that produced it.  
-  `![Click preview to jump to XSLT](assets/xslt-click.gif)`
+  ![XSLT live preview](assets/xslt-preview.gif)
 
-- **Embedded image sidebar (export & replace)** – list, export, and swap base64 images (backgrounds, logos, etc.) in one click.  
-  `![Manage embedded images](assets/xslt-image.gif)`
+- **Click-to-jump from preview to XSLT** – click in the rendered HTML to jump to the exact XSLT line that produced it.
+
+  ![Click preview to jump to XSLT](assets/xslt-click.gif)
+
+- **Embedded image sidebar (export & replace)** – list, export, and swap base64 images (backgrounds, logos, etc.) in one click.
+
+  ![Manage embedded images](assets/xslt-image.gif)
 
 Other capabilities:
 
