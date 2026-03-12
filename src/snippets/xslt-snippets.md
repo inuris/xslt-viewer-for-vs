@@ -5,7 +5,7 @@ Edit the snippets below. Use `##` for the label, an optional detail line, then a
 ---
 
 ## XSLT Debug Invoice
-Add Debug information to XSLT
+Add Debug snippet: Show all XML tags
 ```xml
 <!-- DEBUG MODE -->
 <!-- Ten Nguoi Mua = debug -->
@@ -39,24 +39,8 @@ Add Debug information to XSLT
 
 ---
 
-## Add XML - NMua/MDVQHNSach
-Add XML: Ma don vi quan he ngan sach
-
-```xml
-<xsl:choose>
-    <xsl:when test="../../NMua/MDVQHNSach != ''">
-        <xsl:value-of select="../../NMua/MDVQHNSach"/>
-    </xsl:when>
-    <xsl:otherwise>
-        &#160;
-    </xsl:otherwise>
-</xsl:choose>
-```
-
----
-
-## Add XML - NBan/Ten
-Add XML: Seller name (`NBan/Ten`)
+## Add NBan/Ten
+Add XML tag: Seller name (`NBan/Ten`)
 
 ```xml
 <xsl:choose>
@@ -71,8 +55,8 @@ Add XML: Seller name (`NBan/Ten`)
 
 ---
 
-## Add XML - NBan/MST
-Add XML: Seller tax code (`NBan/MST`)
+## Add NBan/MST
+Add XML tag: Seller tax code (`NBan/MST`)
 
 ```xml
 <xsl:choose>
@@ -87,8 +71,8 @@ Add XML: Seller tax code (`NBan/MST`)
 
 ---
 
-## Add XML - NBan/DChi
-Add XML: Seller address (`NBan/DChi`)
+## Add NBan/DChi
+Add XML tag: Seller address (`NBan/DChi`)
 
 ```xml
 <xsl:choose>
@@ -103,8 +87,8 @@ Add XML: Seller address (`NBan/DChi`)
 
 ---
 
-## Add XML - NBan/SDThoai
-Add XML: Seller phone (`NBan/SDThoai`)
+## Add NBan/SDThoai
+Add XML tag: Seller phone (`NBan/SDThoai`)
 
 ```xml
 <xsl:choose>
@@ -119,8 +103,8 @@ Add XML: Seller phone (`NBan/SDThoai`)
 
 ---
 
-## Add XML - NBan/Fax
-Add XML: Seller fax (`NBan/Fax`)
+## Add NBan/Fax
+Add XML tag: Seller fax (`NBan/Fax`)
 
 ```xml
 <xsl:choose>
@@ -135,8 +119,8 @@ Add XML: Seller fax (`NBan/Fax`)
 
 ---
 
-## Add XML - NBan/STKNHang
-Add XML: Seller bank account (`NBan/STKNHang`)
+## Add NBan/STKNHang
+Add XML tag: Seller bank account (`NBan/STKNHang`)
 
 ```xml
 <xsl:choose>
@@ -151,8 +135,8 @@ Add XML: Seller bank account (`NBan/STKNHang`)
 
 ---
 
-## Add XML - NBan/TNHang
-Add XML: Seller bank name (`NBan/TNHang`)
+## Add NBan/TNHang
+Add XML tag: Seller bank name (`NBan/TNHang`)
 
 ```xml
 <xsl:choose>
@@ -167,8 +151,8 @@ Add XML: Seller bank name (`NBan/TNHang`)
 
 ---
 
-## Add XML - NMua/SHChieu
-Add XML: Buyer passport (`NMua/SHChieu`)
+## Add NMua/SHChieu
+Add XML tag: Buyer passport (`NMua/SHChieu`)
 
 ```xml
 <xsl:choose>
@@ -183,8 +167,8 @@ Add XML: Buyer passport (`NMua/SHChieu`)
 
 ---
 
-## Add XML - NMua/CCCDan
-Add XML: Buyer ID card (`NMua/CCCDan`)
+## Add NMua/CCCDan
+Add XML tag: Buyer ID card (`NMua/CCCDan`)
 
 ```xml
 <xsl:choose>
@@ -199,8 +183,24 @@ Add XML: Buyer ID card (`NMua/CCCDan`)
 
 ---
 
-## Add XML - NMua/Ten
-Add XML: Buyer company name (`NMua/Ten`)
+## Add NMua/MDVQHNSach
+Add XML tag: Budget Relationship Unit Code (`NMua/MDVQHNSach`)
+
+```xml
+<xsl:choose>
+    <xsl:when test="../../NMua/MDVQHNSach != ''">
+        <xsl:value-of select="../../NMua/MDVQHNSach"/>
+    </xsl:when>
+    <xsl:otherwise>
+        &#160;
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Add NMua/Ten
+Add XML tag: Buyer company name (`NMua/Ten`)
 
 ```xml
 <xsl:choose>
@@ -215,8 +215,8 @@ Add XML: Buyer company name (`NMua/Ten`)
 
 ---
 
-## Add XML - NMua/HVTNMHang
-Add XML: Buyer full name (`NMua/HVTNMHang`)
+## Add NMua/HVTNMHang
+Add XML tag: Buyer full name (`NMua/HVTNMHang`)
 
 ```xml
 <xsl:choose>
@@ -231,8 +231,8 @@ Add XML: Buyer full name (`NMua/HVTNMHang`)
 
 ---
 
-## Add XML - NMua/MST
-Add XML: Buyer tax code (`NMua/MST`)
+## Add NMua/MST
+Add XML tag: Buyer tax code (`NMua/MST`)
 
 ```xml
 <xsl:choose>
@@ -247,8 +247,8 @@ Add XML: Buyer tax code (`NMua/MST`)
 
 ---
 
-## Add XML - NMua/DChi
-Add XML: Buyer address (`NMua/DChi`)
+## Add NMua/DChi
+Add XML tag: Buyer address (`NMua/DChi`)
 
 ```xml
 <xsl:choose>
@@ -263,8 +263,8 @@ Add XML: Buyer address (`NMua/DChi`)
 
 ---
 
-## Add XML - NMua/MKHang
-Add XML: Buyer code (`NMua/MKHang`)
+## Add NMua/MKHang
+Add XML tag: Buyer code (`NMua/MKHang`)
 
 ```xml
 <xsl:choose>
@@ -279,8 +279,8 @@ Add XML: Buyer code (`NMua/MKHang`)
 
 ---
 
-## Add XML - NMua/DCTDTu
-Add XML: Buyer email (`NMua/DCTDTu`)
+## Add NMua/DCTDTu
+Add XML tag: Buyer email (`NMua/DCTDTu`)
 
 ```xml
 <xsl:choose>
@@ -295,8 +295,8 @@ Add XML: Buyer email (`NMua/DCTDTu`)
 
 ---
 
-## Add XML - NMua/SDThoai
-Add XML: Buyer phone (`NMua/SDThoai`)
+## Add NMua/SDThoai
+Add XML tag: Buyer phone (`NMua/SDThoai`)
 
 ```xml
 <xsl:choose>
