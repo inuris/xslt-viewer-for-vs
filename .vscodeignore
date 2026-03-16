@@ -2,5 +2,14 @@ node_modules/**
 .vscode/**
 .git/**
 publish-env.bat
+src/**
+test/**
+assets/**
+AI_CONTEXT.md
+install.bat
+publish-app.bat
+tsconfig.json
+.cursor/**
+
 
 
