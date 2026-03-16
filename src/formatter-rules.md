@@ -26,6 +26,8 @@ This document summarizes the formatter’s content-whitespace rules and how they
 | **Tab in content** | **Replace with space** (spec‑aligned). Alternative: *remove* (previous behavior). | XML/XPath normalize to space; “remove” is non‑standard. |
 | **Whitespace‑only text between tags** | Collapsed to a single space + newline (to avoid many blank lines). | Common for pretty‑printers; preserves one space between inline elements. |
 | **Inside tags** | Newlines in tag source collapsed to one space; quoted attribute values unchanged; &#160; preserved. | Aligns with “one line per tag” and safe attribute handling. |
+| **`<style>` blocks** | If a `<style>` element only contains text, inner content is formatted as CSS (one declaration per line) but comments/strings preserved. | Matches typical HTML/CSS formatters. |
+| **`<script>` blocks** | Content inside `<script>...</script>` is passed through **unchanged**; only the `<script>` and `</script>` tags are re-indented. | Avoids breaking JavaScript strings or logic embedded in the page. |
 
 ## Conflict and choice
 
