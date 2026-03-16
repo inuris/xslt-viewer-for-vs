@@ -114,10 +114,25 @@ function tokenize(input: string): Token[] {
                     i++;
                     const raw = input.substring(tagStart, i);
                     const trimmed = raw.trimEnd();
+                    const tagName = getTagName(raw, false);
+                    // Treat entire <script>...</script> as a single text chunk so JS is never modified
+                    if (tagName === 'script') {
+                        const lower = input.toLowerCase();
+                        const closeStart = lower.indexOf('</script', i);
+                        if (closeStart !== -1) {
+                            const closeEnd = input.indexOf('>', closeStart);
+                            if (closeEnd !== -1) {
+                                const fullBlock = input.substring(tagStart, closeEnd + 1);
+                                tokens.push({ type: TokenType.Text, value: fullBlock });
+                                i = closeEnd + 1;
+                                break;
+                            }
+                        }
+                    }
                     if (trimmed.endsWith('/>')) {
                         tokens.push({ type: TokenType.SelfCloseTag, value: raw });
                     } else {
-                        tokens.push({ type: TokenType.OpenTag, value: raw, tagName: getTagName(raw, false) });
+                        tokens.push({ type: TokenType.OpenTag, value: raw, tagName });
                     }
                     break;
                 }
@@ -312,17 +327,11 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
     let depth = 0;
     const out: string[] = [];
     let afterNewline = true;
-    let scriptDepth = 0;
 
     for (let idx = 0; idx < tokens.length; idx++) {
         const t = tokens[idx];
         switch (t.type) {
             case TokenType.Text: {
-                if (scriptDepth > 0) {
-                    out.push(t.value);
-                    afterNewline = false;
-                    break;
-                }
                 const isWhitespaceOnly = /^[\t\n\r\f\v ]*$/.test(t.value);
                 if (isWhitespaceOnly) {
                     if (!afterNewline) {
@@ -353,15 +362,6 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 const { endIdx, isInline } = findMatchingClose(tokens, idx);
                 const tagName = t.tagName;
                 const isStyleBlock = tagName === 'style';
-                const isScriptBlock = tagName === 'script';
-                if (isScriptBlock) {
-                    if (!afterNewline) out.push('\n');
-                    out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
-                    depth++;
-                    scriptDepth++;
-                    afterNewline = false;
-                    break;
-                }
                 if (isInline && isStyleBlock) {
                     // <style> with only text: format inner content as CSS
                     let innerText = '';
@@ -403,12 +403,11 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 break;
             }
             case TokenType.CloseTag:
-                if (t.tagName === 'script' && scriptDepth > 0) {
-                    scriptDepth--;
-                }
                 depth--;
                 if (depth < 0) depth = 0;
-                if (!afterNewline) out.push('\n');
+                if (!afterNewline) {
+                    out.push('\n');
+                }
                 out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
                 afterNewline = false;
                 break;
