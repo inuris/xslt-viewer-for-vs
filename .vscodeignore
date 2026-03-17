@@ -3,6 +3,7 @@ node_modules/**
 .git/**
 publish-env.bat
 src/**
+!src/python/**
 test/**
 assets/**
 AI_CONTEXT.md
