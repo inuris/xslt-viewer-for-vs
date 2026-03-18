@@ -115,10 +115,11 @@ function tokenize(input: string): Token[] {
                     const raw = input.substring(tagStart, i);
                     const trimmed = raw.trimEnd();
                     const tagName = getTagName(raw, false);
-                    // Treat entire <script>...</script> as a single text chunk so JS is never modified
-                    if (tagName === 'script') {
+                    // Treat entire <script>...</script> and <style>...</style> as a single text chunk so
+                    // embedded JS/CSS (including data URIs and HTML comments like <!-- -->) is never tokenized/modified.
+                    if (tagName === 'script' || tagName === 'style') {
                         const lower = input.toLowerCase();
-                        const closeStart = lower.indexOf('</script', i);
+                        const closeStart = lower.indexOf(tagName === 'style' ? '</style' : '</script', i);
                         if (closeStart !== -1) {
                             const closeEnd = input.indexOf('>', closeStart);
                             if (closeEnd !== -1) {
@@ -311,15 +312,87 @@ function formatCss(css: string, indentSize: number): string {
     return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** Normalize content: XML whitespace (tab, LF, CR, space) to single space; preserve one leading/trailing when present. Preserves &#160; (U+00A0). Aligns with XPath normalize-space(). */
+/** Format CSS while preserving any inline data:image;base64,... segments (quoted or unquoted). */
+function formatCssPreservingDataUris(css: string, indentSize: number): string {
+    const originals: string[] = [];
+    let transformed = '';
+    let i = 0;
+    while (i < css.length) {
+        const start = css.indexOf('data:image', i);
+        if (start === -1) {
+            transformed += css.slice(i);
+            break;
+        }
+        transformed += css.slice(i, start);
+
+        // Capture until a likely delimiter that ends the URL context.
+        // We stop before: quote, right-paren, or whitespace/newline.
+        let end = start;
+        while (end < css.length) {
+            const c = css[end];
+            if (c === '"' || c === "'" || c === ')' || c === ' ' || c === '\n' || c === '\r' || c === '\t') break;
+            end++;
+        }
+        const seg = css.slice(start, end);
+        const id = originals.push(seg) - 1;
+        transformed += `__XSLT_VIEWER_DATA_URI_${id}__`;
+        i = end;
+    }
+
+    const formatted = formatCss(transformed, indentSize);
+    if (!formatted) return formatted;
+    return formatted.replace(/__XSLT_VIEWER_DATA_URI_(\d+)__/g, (_m, d) => originals[Number(d)] ?? _m);
+}
+
+function tryFormatWholeStyleBlockText(text: string, indentSize: number, depth: number): string | null {
+    const lower = text.toLowerCase();
+    if (!lower.startsWith('<style')) return null;
+    const closeStart = lower.lastIndexOf('</style');
+    if (closeStart === -1) return null;
+    const closeEnd = text.indexOf('>', closeStart);
+    if (closeEnd === -1) return null;
+
+    // Find end of opening tag (respect quotes).
+    let openEnd = -1;
+    let inQuote = '';
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuote) {
+            if (c === inQuote) inQuote = '';
+            continue;
+        }
+        if (c === '"' || c === "'") { inQuote = c; continue; }
+        if (c === '>') { openEnd = i; break; }
+    }
+    if (openEnd === -1 || openEnd >= closeStart) return null;
+
+    const openTag = text.slice(0, openEnd + 1);
+    const inner = text.slice(openEnd + 1, closeStart);
+    const closeTag = text.slice(closeStart, closeEnd + 1);
+
+    const indentStr = ' '.repeat(indentSize);
+    const baseIndent = indentStr.repeat(depth);
+    const innerFormatted = formatCssPreservingDataUris(inner.trim(), indentSize);
+    const innerWithIndent = innerFormatted
+        ? innerFormatted.split('\n').map((line) => baseIndent + indentStr + line).join('\n')
+        : '';
+
+    return [
+        baseIndent + openTag,
+        innerWithIndent,
+        baseIndent + closeTag,
+    ].filter(Boolean).join('\n');
+}
+
+/**
+ * Preserve text content exactly.
+ *
+ * NOTE: This formatter must never alter text nodes because some XSLT templates
+ * embed large base64 strings (e.g. data URIs) where any whitespace changes
+ * break decoding.
+ */
 function collapseTextToLine(text: string): string {
-    const hadLeading = text.length > 0 && ASCII_WS.test(text[0]);
-    const hadTrailing = text.length > 0 && ASCII_WS.test(text[text.length - 1]);
-    let s = text.replace(/[\t\n\r\f\v ]+/g, ' ').replace(/^[\t\n\r\f\v ]+|[\t\n\r\f\v ]+$/g, '');
-    if (s.length === 0) return hadLeading || hadTrailing ? ' ' : '';
-    if (hadLeading) s = ' ' + s;
-    if (hadTrailing) s = s + ' ';
-    return s;
+    return text;
 }
 
 function formatWithIndent(tokens: Token[], indentSize: number): string {
@@ -340,7 +413,15 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                         afterNewline = true;
                     }
                 } else {
-                    out.push(t.value.replace(/[\t\n\r\f\v ]+/g, ' '));
+                    const formattedStyleBlock = tryFormatWholeStyleBlockText(t.value, indentSize, depth);
+                    if (formattedStyleBlock) {
+                        if (!afterNewline) out.push('\n');
+                        out.push(formattedStyleBlock);
+                        afterNewline = false;
+                        break;
+                    }
+                    // Preserve text nodes exactly (do not normalize whitespace).
+                    out.push(t.value);
                     afterNewline = false;
                 }
                 break;
@@ -355,34 +436,16 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 break;
             case TokenType.SelfCloseTag:
                 if (!afterNewline) out.push('\n');
-                out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
+                // If a tag contains an embedded base64/data-URI, never normalize its whitespace.
+                out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
                 afterNewline = false;
                 break;
             case TokenType.OpenTag: {
                 const { endIdx, isInline } = findMatchingClose(tokens, idx);
                 const tagName = t.tagName;
-                const isStyleBlock = tagName === 'style';
-                if (isInline && isStyleBlock) {
-                    // <style> with only text: format inner content as CSS
-                    let innerText = '';
-                    for (let j = idx + 1; j < endIdx; j++) {
-                        const inner = tokens[j];
-                        if (inner.type === TokenType.Text) innerText += inner.value;
-                    }
-                    const formattedCss = formatCss(innerText.trim(), indentSize);
-                    const baseIndent = indentStr.repeat(depth);
-                    const cssWithIndent = formattedCss
-                        ? formattedCss.split('\n').map((line) => baseIndent + line).join('\n')
-                        : '';
+                if (isInline) {
                     if (!afterNewline) out.push('\n');
-                    out.push(baseIndent, normalizeTagWhitespace(t.value), '\n');
-                    if (cssWithIndent) out.push(cssWithIndent, '\n');
-                    out.push(baseIndent, normalizeTagWhitespace(tokens[endIdx].value));
-                    idx = endIdx;
-                    afterNewline = false;
-                } else if (isInline) {
-                    if (!afterNewline) out.push('\n');
-                    out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
+                    out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
                     for (let j = idx + 1; j < endIdx; j++) {
                         const inner = tokens[j];
                         if (inner.type === TokenType.Text) {
@@ -396,7 +459,7 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                     afterNewline = false;
                 } else {
                     if (!afterNewline) out.push('\n');
-                    out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
+                    out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
                     depth++;
                     afterNewline = false;
                 }
