@@ -90,7 +90,7 @@ setlocal EnableDelayedExpansion
 echo.
 echo [1/2] Publishing to VS Code Marketplace...
 @REM Use a test file to communicate with process
-(echo y) | vsce publish -p %VS_TOKEN%
+(echo y) | vsce publish %ARG% -p %VS_TOKEN%
 set "VSCE_CODE=%ERRORLEVEL%"
 if "%VSCE_CODE%"=="0" (
     echo [SUCCESS] Published to VS Code Marketplace
