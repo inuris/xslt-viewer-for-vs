@@ -12,7 +12,7 @@ export function runPythonTransformation(
     xslt: string
 ): Promise<string> {
     return new Promise((resolve, reject) => {
-        const scriptPath = context.asAbsolutePath(path.join('src', 'python', 'transform.py'));
+        const scriptPath = context.asAbsolutePath(path.join('resources', 'python', 'transform.py'));
         const config = vscode.workspace.getConfiguration('xslt-viewer');
         const pythonPath = config.get<string>('pythonPath') || 'python';
 

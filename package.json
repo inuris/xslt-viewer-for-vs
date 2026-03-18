@@ -88,7 +88,7 @@
         "xslt-viewer.snippetsFile": {
           "type": "string",
           "default": "",
-          "description": "Path to a custom XSLT snippets file (Markdown .md, see src/snippets/README.md). Leave empty to use built-in src/snippets/xslt-snippets.md."
+          "description": "Path to a custom XSLT snippets file (Markdown .md, see resources/snippets/README.md). Leave empty to use built-in resources/snippets/xslt-snippets.md."
         }
       }
     },

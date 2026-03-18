@@ -64,7 +64,7 @@ function loadXsltSnippets(context: vscode.ExtensionContext): XsltSnippetEntry[] 
         filePath = path.isAbsolute(customPath) ? customPath : path.join(workspaceRoot, customPath);
         if (!path.extname(filePath)) filePath = filePath + '.md';
     } else {
-        filePath = path.join(context.extensionPath, 'src', 'snippets', 'xslt-snippets.md');
+        filePath = path.join(context.extensionPath, 'resources', 'snippets', 'xslt-snippets.md');
     }
 
     try {
@@ -127,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
             const snippets = loadXsltSnippets(context);
             if (snippets.length === 0) {
                 vscode.window.showWarningMessage(
-                    'No XSLT snippets found. Edit src/snippets/xslt-snippets.md or set xslt-viewer.snippetsFile.'
+                    'No XSLT snippets found. Edit resources/snippets/xslt-snippets.md or set xslt-viewer.snippetsFile.'
                 );
                 return;
             }

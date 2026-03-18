@@ -28,4 +28,4 @@ Snippet definitions for **XSLT: Insert Snippet** (right-click in editor → **XS
 
 ## Custom file location
 
-Set **xslt-viewer.snippetsFile** to your snippet file path (e.g. `my-snippets.md`). Leave empty to use the built-in `src/snippets/xslt-snippets.md`.
+Set **xslt-viewer.snippetsFile** to your snippet file path (e.g. `my-snippets.md`). Leave empty to use the built-in `resources/snippets/xslt-snippets.md`.

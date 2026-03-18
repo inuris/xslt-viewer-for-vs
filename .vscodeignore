@@ -1,16 +1,16 @@
-node_modules/**
+﻿node_modules/**
 .vscode/**
 .git/**
 publish-env.bat
 src/**
-!src/python/**
+!src/**/*.md
+# runtime assets
+!resources/**
+# dev/test
 test/**
-assets/**
+.cursor/**
+# keep packaged docs + icon
 AI_CONTEXT.md
 install.bat
 publish-app.bat
 tsconfig.json
-.cursor/**
-
-
-
