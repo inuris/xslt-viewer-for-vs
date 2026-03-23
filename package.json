@@ -89,6 +89,11 @@
           "type": "string",
           "default": "",
           "description": "Path to a custom XSLT snippets file (Markdown .md, see resources/snippets/README.md). Leave empty to use built-in resources/snippets/xslt-snippets.md."
+        },
+        "xslt-viewer.highlightPreviewOnXsltCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the XSLT file is active, highlight the preview element(s) whose data-source-line matches the cursor line (reverse of click-to-jump)."
         }
       }
     },

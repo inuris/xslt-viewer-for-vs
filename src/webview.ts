@@ -219,6 +219,17 @@ export function getWebviewShell(initialZoom: number = 100): string {
                if (pathEl) pathEl.textContent = msg.relativePath || msg.filename || '—';
                const switchBtn = document.getElementById('switch-file-btn');
                if (switchBtn && msg.switchButtonLabel) switchBtn.textContent = msg.switchButtonLabel;
+               var hl = msg.highlightLine;
+               if (hl != null && hl > 0 && frame) {
+                   frame.addEventListener('load', function highlightAfterPreviewLoad() {
+                       if (frame.contentWindow) {
+                           frame.contentWindow.postMessage(
+                               { command: 'highlightSourceLine', line: hl },
+                               '*'
+                           );
+                       }
+                   }, { once: true });
+               }
             }
             if (msg.command === 'setSwitchLabel' && msg.label) {
                const switchBtn = document.getElementById('switch-file-btn');
@@ -227,6 +238,12 @@ export function getWebviewShell(initialZoom: number = 100): string {
             if (msg.command === 'setPath' && msg.relativePath !== undefined) {
                const pathEl = document.getElementById('path-text');
                if (pathEl) pathEl.textContent = msg.relativePath;
+            }
+            if (msg.command === 'highlightPreviewLine' && frame && frame.contentWindow) {
+               frame.contentWindow.postMessage(
+                   { command: 'highlightSourceLine', line: msg.line },
+                   '*'
+               );
             }
         });
         
@@ -576,6 +593,45 @@ export function wrapForIframe(content: string): string {
     const script = `
     <script>
         (function() {
+            var hlStyle = document.createElement('style');
+            hlStyle.textContent = '.xslt-preview-line-highlight{outline:3px solid #AB47BC!important;box-shadow:0 0 0 2px rgba(171,71,188,0.45);z-index:2;position:relative;}';
+            if (document.head) document.head.appendChild(hlStyle);
+            var previewLineHighlighted = [];
+            function clearPreviewLineHighlight() {
+                previewLineHighlighted.forEach(function(el) {
+                    el.classList.remove('xslt-preview-line-highlight');
+                });
+                previewLineHighlighted = [];
+            }
+            function highlightPreviewForSourceLine(lineNum) {
+                clearPreviewLineHighlight();
+                if (!lineNum || lineNum < 1) return;
+                var sel = '[data-source-line="' + String(lineNum) + '"]';
+                var els = document.querySelectorAll(sel);
+                if (!els.length) return;
+                for (var i = 0; i < els.length; i++) {
+                    els[i].classList.add('xslt-preview-line-highlight');
+                    previewLineHighlighted.push(els[i]);
+                }
+                try {
+                    els[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                } catch (err) {}
+            }
+            window.addEventListener('message', function(e) {
+                var d = e.data;
+                if (d && d.command === 'highlightSourceLine') {
+                    if (d.line == null || d.line === '') {
+                        clearPreviewLineHighlight();
+                        return;
+                    }
+                    var n = parseInt(d.line, 10);
+                    if (isNaN(n)) {
+                        clearPreviewLineHighlight();
+                        return;
+                    }
+                    highlightPreviewForSourceLine(n);
+                }
+            });
             var hoveredEl = null, hoveredParent = null;
             var tip = document.createElement('div');
             tip.id = 'xslt-dimensions-tooltip';

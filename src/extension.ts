@@ -162,8 +162,30 @@ export function activate(context: vscode.ExtensionContext) {
     let activeXml: vscode.TextDocument | undefined;
     let activeXslt: vscode.TextDocument | undefined;
     let updateTimeout: NodeJS.Timeout | undefined;
+    let highlightPreviewThrottle: NodeJS.Timeout | undefined;
     /** Which of the pair was last shown by Switch File (so we can toggle when e.g. Preview has focus) */
     let lastSwitchedTo: 'xml' | 'xslt' | null = null;
+
+    const postHighlightPreviewLine = (line: number | null) => {
+        if (!currentPanel?.visible) return;
+        currentPanel.webview.postMessage({ command: 'highlightPreviewLine', line });
+    };
+
+    const scheduleHighlightPreviewFromXslt = (editor: vscode.TextEditor) => {
+        if (!currentPanel?.visible || !activeXslt) return;
+        const cfg = vscode.workspace.getConfiguration('xslt-viewer');
+        if (!cfg.get<boolean>('highlightPreviewOnXsltCursor')) return;
+        if (editor.document.uri.toString() !== activeXslt.uri.toString()) {
+            postHighlightPreviewLine(null);
+            return;
+        }
+        const line = editor.selection.active.line + 1;
+        if (highlightPreviewThrottle) clearTimeout(highlightPreviewThrottle);
+        highlightPreviewThrottle = setTimeout(() => {
+            highlightPreviewThrottle = undefined;
+            postHighlightPreviewLine(line);
+        }, 120);
+    };
 
     const triggerAutoUpdate = () => {
         if (updateTimeout) clearTimeout(updateTimeout);
@@ -205,6 +227,15 @@ export function activate(context: vscode.ExtensionContext) {
             currentDoc = lastSwitchedTo === 'xml' ? activeXml : activeXslt;
         }
 
+        const cfgHl = vscode.workspace.getConfiguration('xslt-viewer');
+        let highlightLine: number | undefined = undefined;
+        if (cfgHl.get<boolean>('highlightPreviewOnXsltCursor')) {
+            const edHl = vscode.window.activeTextEditor;
+            if (edHl && activeXslt && edHl.document.uri.toString() === activeXslt.uri.toString()) {
+                highlightLine = edHl.selection.active.line + 1;
+            }
+        }
+
         currentPanel.webview.postMessage({
             command: 'update',
             html: wrappedHtml,
@@ -212,6 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
             filename: path.basename(currentDoc.fileName),
             relativePath: vscode.workspace.asRelativePath(currentDoc.uri),
             switchButtonLabel,
+            ...(highlightLine !== undefined ? { highlightLine } : {}),
         });
     };
 
@@ -497,6 +529,29 @@ export function activate(context: vscode.ExtensionContext) {
                 triggerAutoUpdate();
             if (activeXslt && e.document.uri.toString() === activeXslt.uri.toString())
                 triggerAutoUpdate();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.window.onDidChangeTextEditorSelection(e => {
+            scheduleHighlightPreviewFromXslt(e.textEditor);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (!currentPanel?.visible || !activeXslt) return;
+            const cfg = vscode.workspace.getConfiguration('xslt-viewer');
+            if (!cfg.get<boolean>('highlightPreviewOnXsltCursor')) return;
+            if (!editor) {
+                postHighlightPreviewLine(null);
+                return;
+            }
+            if (editor.document.uri.toString() !== activeXslt.uri.toString()) {
+                postHighlightPreviewLine(null);
+                return;
+            }
+            scheduleHighlightPreviewFromXslt(editor);
         })
     );
 

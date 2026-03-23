@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.1
+
+### Added
+- **Preview ↔ XSLT sync**: While the XSLT editor is active, the preview highlights output element(s) whose `data-source-line` matches the cursor line (reverse of click-to-jump). Toggle with setting `xslt-viewer.highlightPreviewOnXsltCursor` (default: on).
+
 ## 2.1.4
 
 ### Added

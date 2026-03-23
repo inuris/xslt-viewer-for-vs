@@ -71,11 +71,12 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Auto-update:** When the active editor switches to a different XML file with a stylesheet link, the pair is updated automatically.
 - **Manual:** `xslt-viewer.switchFile` command toggles between the active XML and XSLT, updating the path bar label.
 
-### 3. "Click-to-Jump" Navigation
+### 3. "Click-to-Jump" Navigation (and reverse: cursor → preview highlight)
 - **Frontend (Webview):** The rendered HTML contains elements with `data-source-line` (injected by `instrumentXslt`).
-- **Interaction:** User clicks an element in the preview.
+- **Interaction (preview → code):** User clicks an element in the preview.
 - **Message:** Webview iframe sends `{ command: 'jumpToCode', line: ... }` to the outer shell, which forwards it to the Extension.
 - **Action:** Extension calls `findAndJump()` to open `activeXslt` and reveal the specific line. Path bar and switch button label update accordingly.
+- **Reverse (code → preview):** When `xslt-viewer.highlightPreviewOnXsltCursor` is true (default), moving the cursor in the **active XSLT** editor sends `highlightPreviewLine` to the shell, which `postMessage`s `highlightSourceLine` into the preview iframe. Elements matching `[data-source-line="<line>"]` get class `xslt-preview-line-highlight` (purple `#AB47BC` outline + shadow, chosen to stand out from common invoice blues) and scroll into view. After each full preview refresh (`update`), `highlightLine` is included in the same message and applied on iframe `load` to avoid racing `srcdoc` replacement. Highlight is cleared when the active editor is not the XSLT file (e.g. XML or another tab) or when the editor loses focus without a matching XSLT document.
 
 ### 4. Hover Tooltip (Dimensions)
 - **Script:** Injected by `wrapForIframe()` into the iframe content.
@@ -118,7 +119,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
 - **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
-- **Messages from Extension:** `update` (full refresh), `setSwitchLabel`, `setPath`.
+- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear).
 - **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`. Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
 
 ## 4. Comparison with Web App (`ref/`)
