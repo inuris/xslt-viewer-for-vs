@@ -1,11 +1,14 @@
-﻿node_modules/**
+node_modules/**
 .vscode/**
 .git/**
 publish-env.bat
 src/**
-!src/**/*.md
 # runtime assets
 !resources/**
+resources/snippets/README.md
+resources/.gitkeep
+# smaller extension bundle (no sourcemaps needed at runtime)
+out/**/*.map
 # dev/test
 test/**
 .cursor/**
