@@ -606,8 +606,16 @@ export function wrapForIframe(content: string): string {
             function highlightPreviewForSourceLine(lineNum) {
                 clearPreviewLineHighlight();
                 if (!lineNum || lineNum < 1) return;
-                var sel = '[data-source-line="' + String(lineNum) + '"]';
-                var els = document.querySelectorAll(sel);
+                var els = [];
+                var fallbackLine = lineNum;
+                // If current cursor line has no mapped output node (e.g. xsl:value-of text line),
+                // walk upward to the nearest previous mapped source line (closest parent output tag).
+                while (fallbackLine >= 1) {
+                    var sel = '[data-source-line="' + String(fallbackLine) + '"]';
+                    els = document.querySelectorAll(sel);
+                    if (els.length) break;
+                    fallbackLine--;
+                }
                 if (!els.length) return;
                 for (var i = 0; i < els.length; i++) {
                     els[i].classList.add('xslt-preview-line-highlight');

@@ -7,6 +7,10 @@ All notable changes to this extension will be documented in this file.
 ### Added
 - **Preview ↔ XSLT sync**: While the XSLT editor is active, the preview highlights output element(s) whose `data-source-line` matches the cursor line (reverse of click-to-jump). Toggle with setting `xslt-viewer.highlightPreviewOnXsltCursor` (default: on).
 
+### Changed
+- **Preview highlight color**: Cursor-sync outline uses purple (`#AB47BC`) instead of blue so it stays visible on invoices that use blue styling.
+- **Preview line fallback**: When the cursor is on inner XSLT text lines (for example `xsl:value-of`) that do not map directly to an output node, preview highlight now falls back to the nearest previous mapped line (closest parent output tag).
+
 ## 2.1.4
 
 ### Added
