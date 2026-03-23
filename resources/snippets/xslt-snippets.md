@@ -9,7 +9,7 @@ Add Debug snippet: Show all XML tags
 ```xml
 <!-- DEBUG MODE -->
 <!-- Ten Nguoi Mua = debug -->
-<xsl:if test="(//TTChung/SHDon=0 and //NMua/HVTNMHang='debug') or (//TTChung/SCTu=0 and //NNT/Ten='debug')">
+<xsl:if test="(//TTChung/SHDon=0 and (//NMua/HVTNMHang='debug' or //NMua/HVTNNHang='debug')) or (//TTChung/SCTu=0 and //NNT/Ten='debug')">
     <div id="xmldebug" style="background:#fff3cd;padding:15px;margin:20px;font-family:monospace;font-size:13px;text-align:left;max-width:100%;box-sizing:border-box;">
         <style>
             .dbg-tabs{display:flex;gap:5px;margin-bottom:10px;border-bottom:1px solid #ffeeba;padding-bottom:10px}
