@@ -310,7 +310,10 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
         .btn-secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
         .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-        .actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+        .btn-delete { background: transparent; color: var(--vscode-errorForeground); border: 1px solid var(--vscode-input-border); }
+        .btn-delete:hover { background: var(--vscode-input-background); }
+        .actions { margin-top: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .actions-spacer { flex: 1; min-width: 8px; }
         .dims-info { margin: 8px 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
         .hidden { display: none !important; }
     </style>
@@ -343,6 +346,8 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         <div class="dims-info" id="dims-info">Original: — | New: —</div>
     </div>
     <div class="actions">
+        <button type="button" class="btn btn-delete" id="btn-delete">Delete image</button>
+        <span class="actions-spacer" aria-hidden="true"></span>
         <button type="button" class="btn btn-secondary" id="btn-cancel">Cancel</button>
         <button type="button" class="btn btn-primary" id="btn-insert">Replace</button>
     </div>
@@ -474,6 +479,11 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
 
         document.getElementById('btn-cancel').onclick = function() {
             vscode.postMessage({ command: 'replaceImageCancel' });
+        };
+
+        document.getElementById('btn-delete').onclick = function() {
+            if (!state.range) return;
+            vscode.postMessage({ command: 'replaceImageDelete', range: state.range });
         };
 
         document.getElementById('btn-insert').onclick = function() {

@@ -65,6 +65,7 @@ export async function handleSaveImage(base64: string, mime: string): Promise<voi
 
 /**
  * Apply a replace in the document at the given range with the new data URI string.
+ * Pass an empty string to remove the embedded image (clear the data URI at that range).
  */
 export async function applyReplaceImage(
     range: ImageInfo['range'],

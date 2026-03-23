@@ -421,6 +421,11 @@ export function activate(context: vscode.ExtensionContext) {
                                     replacePanel.dispose();
                                     if (currentPanel && activeXml && activeXslt) runUpdate();
                                 }
+                                if (msg.command === 'replaceImageDelete' && msg.range) {
+                                    await applyReplaceImage(msg.range, '');
+                                    replacePanel.dispose();
+                                    if (currentPanel && activeXml && activeXslt) runUpdate();
+                                }
                                 if (msg.command === 'replaceImageCancel') {
                                     replacePanel.dispose();
                                 }

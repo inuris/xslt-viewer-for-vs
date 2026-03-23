@@ -88,7 +88,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Actions:**
     - **Jump:** `handleJumpToImage()` — reveal the image line in the editor.
     - **Export:** Opens `getExportImagePanelHtml()` panel — save to file via `handleSaveImage()` or copy raw base64.
-    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. Applied via `applyReplaceImage()`.
+    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. **Delete image** (red text) clears the data URI at the scan range (empty string) via `applyReplaceImage(range, '')`. Normal replace uses `applyReplaceImage(range, dataUri)`.
 
 ### 6. Dependency Setup Check (First-Run)
 - **Trigger:** Called immediately in `activate()` via `checkDependencies()` from `setup.ts`.
@@ -119,7 +119,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
 - **Messages from Extension:** `update` (full refresh), `setSwitchLabel`, `setPath`.
-- **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`.
+- **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`. Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
 
 ## 4. Comparison with Web App (`ref/`)
 This project is a port of the "XSLT Viewer Cloud" (Web App).
