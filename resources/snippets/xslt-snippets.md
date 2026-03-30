@@ -55,6 +55,61 @@ Add "data:image/gif;base64,..."
 data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7
 ```
 
+
+---
+
+## Update STT by TChat
+Add XML condition to hide STT when TChat = 4 (Ghi chu)
+
+```xml
+<xsl:choose>
+    <xsl:when test="TChat = 1">
+        <xsl:number level="any" count="HHDVu[TChat=1]" format="1"/>
+    </xsl:when>
+    <xsl:when test="TChat = 4">&#160;</xsl:when>
+    <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu = '.'">
+        &#160;
+    </xsl:when>
+    <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu != ''">
+        <xsl:value-of select="TTKhac/TTin[TTruong='Remark']/DLieu" />
+    </xsl:when>
+    <xsl:otherwise>
+        <xsl:value-of select="STT" />
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
+## Line break by delimiter
+Add line break by custom delimiter like `;`
+
+```xml
+<!-- Template define -->
+<xsl:template name="linebreak">
+    <xsl:param name="text" />
+    <xsl:param name="delimiter" select="';'" />
+    <xsl:choose>
+        <xsl:when test="contains($text, $delimiter)">
+            <xsl:value-of select="substring-before($text, $delimiter)" />
+            <br />
+            <!-- recursive call -->
+            <xsl:call-template name="linebreak">
+                <xsl:with-param name="text" select="substring-after($text, $delimiter)" />
+            </xsl:call-template>
+        </xsl:when>
+        <xsl:otherwise>
+            <xsl:value-of select="$text" />
+        </xsl:otherwise>
+    </xsl:choose>
+</xsl:template>
+
+<!-- Template call -->
+<xsl:call-template name="linebreak">
+    <xsl:with-param name="text" select="THHDVu" />
+</xsl:call-template>
+```
+
 ---
 
 ## Add NBan/Ten
