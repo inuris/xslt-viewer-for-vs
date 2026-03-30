@@ -1,12 +1,12 @@
 {
   "name": "xslt-viewer-vs",
-  "displayName": "XSLT Viewer",
+  "displayName": "XSLT Viewer: Live Preview & Format",
   "publisher": "inuris",
   "repository": {
     "type": "git",
     "url": "https://github.com/inuris/xslt-viewer-for-vs"
   },
-  "description": "Preview XML/XSLT, format XML/XSLT, and manage embedded images",
+  "description": "Live XSLT preview, formatter, and image manager",
   "icon": "icon.png",
   "version": "2.2.1",
   "engines": {
