@@ -39,7 +39,7 @@
     "commands": [
       {
         "command": "xslt-viewer.preview",
-        "title": "XSLT: Preview Transformation",
+        "title": "XSLT: Preview",
         "icon": "$(preview)"
       },
       {

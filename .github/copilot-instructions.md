@@ -27,7 +27,11 @@ When you add, change, or remove **any feature, function, or command** in this co
    - If the new feature introduces a new pattern, file type, or convention: add or edit the relevant instruction file.
    - If an existing instruction becomes outdated (e.g. new commands, new workflow), update it so future sessions have accurate context.
 
-3. **Keep instructions concise**
+3. **Update `CHANGELOG.md`**
+   - Add a short bullet under the next version (increment the last number from the latest entry, e.g. `2.2.1` → `2.2.2`) under `### Added`, `### Changed`, or `### Fixed` as appropriate.
+   - Keep entries brief (one line).
+
+4. **Keep instructions concise**
    - Prefer updating existing instructions over creating many small ones.
    - Ensure each instruction file's `applyTo` and content still match what the code does.
 

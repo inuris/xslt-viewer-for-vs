@@ -1,6 +1,16 @@
 # XSLT Viewer: Live Preview & Format
 
-> **Transform XML with XSLT and see the result instantly — right inside VS Code.**
+*Transform XML with XSLT and see the result instantly — right inside VS Code.*
+
+---
+
+## ✅ How to Use
+
+|               |               |
+| ------------- | ------------- |
+| **Preview**       | `Right click` XML file → `XSLT: Preview`     |
+| **Instpect**      | `Left click` elements in `Preview` pane     |
+| **Formatter**     | `Right click` XML/XSLT code editot → `Format Document With` →  `XSLT Viewer`  |
 
 ![XSLT live preview](assets/xslt-preview.gif)
 
@@ -27,7 +37,7 @@ Replace logos and backgrounds without touching raw base64 strings.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 First Installation
 
 > XSLT transformations run via **Python 3 + lxml**. The steps below take under 2 minutes.
 

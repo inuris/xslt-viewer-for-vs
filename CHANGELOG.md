@@ -2,6 +2,12 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.4
+
+### Changed
+- **XSLT auto-select**: When only one XSLT file exists in the current folder, it is selected automatically without showing a pick list.
+- **Context menu label**: Renamed from `XSLT: Preview Transformation` to `XSLT: Preview`.
+
 ## 2.2.1
 
 ### Added
