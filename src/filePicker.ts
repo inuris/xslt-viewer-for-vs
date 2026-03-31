@@ -36,6 +36,10 @@ export async function pickWorkspaceFile(
         return undefined;
     }
 
+    if (files.length === 1) {
+        return await vscode.workspace.openTextDocument(files[0]);
+    }
+
     const items = files.map(uri => ({
         label: path.basename(uri.fsPath),
         description: vscode.workspace.asRelativePath(uri),
