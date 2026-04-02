@@ -55,3 +55,11 @@ XSLT Viewer: Check Python & lxml Setup
 The setup page detects your environment and shows exactly what to do if anything is missing.
 
 > Export any preview to a browser or PDF via the toolbar button inside the preview panel.
+
+---
+
+If you find it useful, leaving a ⭐ is always appreciated:
+
+**[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=inuris.xslt-viewer-vs&ssr=false#review-details)** | **[Open VSX](https://open-vsx.org/extension/inuris/xslt-viewer-vs)**
+
+Or buy me a [☕ Ko-fi](https://ko-fi.com/O5O01WSURZ)
