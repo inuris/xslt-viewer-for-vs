@@ -112,6 +112,45 @@ Add line break by custom delimiter like `;`
 
 ---
 
+## Fix MST (span type)
+Update condition to display 10-14 characters
+
+```xml
+<xsl:choose>
+    <xsl:when test="string-length(//NNT/MST)=14">
+        <span style="margin-top: 5px;">-</span>
+        <span class="number">
+            <xsl:value-of select="substring(//NNT/MST,12,1)" />
+        </span>
+        <span class="number">
+            <xsl:value-of select="substring(//NNT/MST,13,1)" />
+        </span>
+        <span class="number">
+            <xsl:value-of select="substring(//NNT/MST,14,1)" />
+        </span>
+    </xsl:when>
+    <xsl:otherwise>
+        <xsl:if test="substring(//NNT/MST,11,1) !=''">
+            <span class="number">
+                <xsl:value-of select="substring(//NNT/MST,11,1)" />
+            </span>
+        </xsl:if>
+        <xsl:if test="substring(//NNT/MST,12,1) !=''">
+            <span class="number">
+                <xsl:value-of select="substring(//NNT/MST,12,1)" />
+            </span>
+        </xsl:if>
+        <xsl:if test="substring(//NNT/MST,13,1) !=''">
+            <span class="number">
+                <xsl:value-of select="substring(//NNT/MST,13,1)" />
+            </span>
+        </xsl:if>
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
 ## Add NBan/Ten
 Add XML tag: Seller name (`NBan/Ten`)
 
