@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.5
+
+### Added
+- **Snippets**: Add more snippets
+
 ## 2.2.4
 
 ### Changed
