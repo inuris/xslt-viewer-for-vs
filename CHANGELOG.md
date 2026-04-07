@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.7
+
+### Fixed
+- **Replace image**: Skip old-image size suggestion when the existing image is 1×1 (placeholder); the new image's natural size is suggested instead.
+
 ## 2.2.6
 
 ### Added

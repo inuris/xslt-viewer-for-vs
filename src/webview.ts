@@ -422,7 +422,9 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
 
                 // If we know the original image size and maintain-ratio is on,
                 // fit the NEW image into the ORIGINAL bounding box without oversizing.
-                if (state.origW > 0 && state.origH > 0 && document.getElementById('maintain-ratio').checked) {
+                // Exception: 1×1 is a placeholder — ignore its size and use the new image's natural size.
+                const isPlaceholder = state.origW === 1 && state.origH === 1;
+                if (!isPlaceholder && state.origW > 0 && state.origH > 0 && document.getElementById('maintain-ratio').checked) {
                     const scaleW = state.origW / state.originalImageW;
                     const scaleH = state.origH / state.originalImageH;
                     const scale = Math.min(scaleW, scaleH, 1); // never upscale beyond 100%
