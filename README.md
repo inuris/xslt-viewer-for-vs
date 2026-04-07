@@ -9,8 +9,8 @@
 |               |               |
 | ------------- | ------------- |
 | **Preview**       | `Right click` XML file → `XSLT: Preview`     |
-| **Instpect**      | `Left click` elements in `Preview` pane     |
-| **Formatter**     | `Right click` XML/XSLT code editot → `Format Document With` →  `XSLT Viewer`  |
+| **Inspect**       | `Left click` elements in the `Preview` pane     |
+| **Formatter**     | `Right click` in the XML/XSLT code editor → `Format Document With` → `XSLT Viewer`  |
 
 ![XSLT live preview](assets/xslt-preview.gif)
 
@@ -25,7 +25,7 @@
 
 ### ⚡ Click-to-Jump: the magic workflow
 
-Spot something wrong in the preview? **Click it.** VS Code jumps to the exact XSLT template responsible. No searching, no guessing.
+Spot something wrong in the preview? **Click it.** VS Code jumps to the exact XSLT template responsible. No searching, no guesswork.
 
 ![Click preview to jump to XSLT](assets/xslt-click.gif)
 

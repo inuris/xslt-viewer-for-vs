@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.9
+
+### Changed
+- **README**: Corrected English typos and improved wording in the usage table and click-to-jump description.
+
 ## 2.2.8
 
 ### Fixed

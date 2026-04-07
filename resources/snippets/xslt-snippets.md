@@ -85,7 +85,7 @@ Add XML condition to hide STT when TChat = 4 (Ghi chu)
 Add line break by custom delimiter like `;`
 
 ```xml
-<!-- Template define -->
+<!-- Linebreak template -->
 <xsl:template name="linebreak">
     <xsl:param name="text" />
     <xsl:param name="delimiter" select="';'" />
@@ -104,7 +104,7 @@ Add line break by custom delimiter like `;`
     </xsl:choose>
 </xsl:template>
 
-<!-- Template call -->
+<!-- Linebreak call -->
 <xsl:call-template name="linebreak">
     <xsl:with-param name="text" select="THHDVu" />
 </xsl:call-template>
@@ -155,7 +155,7 @@ Update condition to display 10-14 characters
 Add a block for replacement or adjustment invoices
 
 ```xml
-<!-- Template define -->
+<!-- Replacement/Adjustment template -->
 <xsl:template name="detectTTHDLQuan">
     <xsl:variable name="pTCHDon">
     <xsl:value-of select="../../../TTChung/TTHDLQuan/TCHDon"/>
@@ -199,7 +199,7 @@ Add a block for replacement or adjustment invoices
     </xsl:choose>
 </xsl:template>
 
-<!-- Template call -->
+<!-- Replacement/Adjustment call -->
 <xsl:choose>
     <xsl:when test="../../../TTChung/TTHDLQuan != ''">
         <div style="text-align:center;padding-top:0px;font-size:11px;text-transform:uppercase;font-weight: bold;">
