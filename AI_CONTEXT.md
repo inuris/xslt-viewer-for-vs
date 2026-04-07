@@ -136,4 +136,10 @@ This project is a port of the "XSLT Viewer Cloud" (Web App).
 3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
 4. **New Modules:** If new `.ts` files are added under `src/`.
 
+### Agent Hotfix & Release Workflow
+- For user-requested **minor bugfixes** in AI Agent mode, the expected operational flow is:
+    1) detect/reproduce, 2) implement smallest safe fix, 3) validate, 4) bump `CHANGELOG.md` patch version (`x.y.z -> x.y.(z+1)`), 5) commit + push, 6) run `publish-app.bat`.
+- For **bigger updates** (new features, behavior redesign, settings/commands changes, broad refactors, or higher risk), the agent must ask for confirmation before push/publish.
+- If validation or publish fails, stop and report status instead of continuing release steps.
+
 **Cursor instructions:** Project rules live in `.cursor/rules/`. When adding or changing features or functions, **also update** the relevant `.mdc` rules and this file. See the rule `self-update-instructions.mdc` for the required self-update protocol.

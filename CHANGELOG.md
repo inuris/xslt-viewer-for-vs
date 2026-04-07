@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.10
+
+### Changed
+- **AI Agent workflow**: Documented hotfix flow for minor bugfix auto-release (fix/validate/changelog/commit/push/publish) and confirmation requirement for bigger updates.
+
 ## 2.2.9
 
 ### Changed

@@ -36,3 +36,31 @@ When you add, change, or remove **any feature, function, or command** in this co
    - Ensure each instruction file's `applyTo` and content still match what the code does.
 
 Apply this protocol whenever you implement or modify user-facing or structural behaviour (commands, webview messages, Python I/O, configuration, workflows). Do not skip updating instructions "for later."
+
+---
+
+# Agent Hotfix & Release Workflow
+
+When the user asks for a **bug fix / debug in AI Agent** and indicates auto-release intent, follow this workflow:
+
+1. **Detect + Fix**
+   - Reproduce or inspect the reported issue.
+   - Implement the smallest safe fix.
+   - Validate via available checks (build/tests/manual verification notes).
+
+2. **Versioning + Changelog (Patch only)**
+   - For minor bugfixes, bump the patch version in `CHANGELOG.md` (x.y.z -> x.y.(z+1)).
+   - Add one concise bullet under `### Fixed` (or `### Changed` if more accurate).
+
+3. **Git + Publish (auto for minor bugfixes)**
+   - Stage changed files.
+   - Commit with a concise message.
+   - Push to remote.
+   - Run `publish-app.bat` from repo root.
+
+4. **Require confirmation for bigger updates**
+   - If the change is not a small bugfix (new feature, behavior redesign, command/config changes, breaking risk, or multi-file refactor), stop and ask for confirmation before running git push and publish.
+
+5. **Safety guardrails**
+   - Never run destructive git commands.
+   - If validation fails or publish fails, stop and report clearly.
