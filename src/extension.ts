@@ -320,7 +320,7 @@ export function activate(context: vscode.ExtensionContext) {
         const docToFocus = activeXml ?? activeXslt;
         await vscode.window.showTextDocument(docToFocus, {
             viewColumn: vscode.ViewColumn.One,
-            preserveFocus: false,
+            preserveFocus: true,
         });
         lastSwitchedTo = docToFocus === activeXml ? 'xml' : 'xslt';
 

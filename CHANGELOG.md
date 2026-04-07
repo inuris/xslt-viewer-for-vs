@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.8
+
+### Fixed
+- **Search result reveal**: Prevent losing focus to Search results when "Reveal in Explorer" is used; extension no longer steals focus from other views.
+
 ## 2.2.7
 
 ### Fixed
