@@ -5,7 +5,7 @@
 **Stack:** TypeScript (extension host), Python with `lxml` (transformation), HTML/CSS/JS (webview UI).
 
 **Key files:**
-- `src/extension.ts` — activation, commands, webview panel, IPC with Python, image sidebar logic.
+- `src/extension.ts` — activation, commands, webview panel, IPC with Python, image sidebar logic (including temporary live replace-image preview lifecycle and replace-dialog targeting context).
 - `resources/python/transform.py` — reads JSON `{ xmlContent, xsltContent }` from stdin, writes result bytes to stdout.
 - `resources/snippets/xslt-snippets.md` — XSLT snippet definitions (Markdown); built-in snippet list.
 - `package.json` — commands (`xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSnippets`), config (`xslt-viewer.pythonPath`, `xslt-viewer.snippetsFile`), menus/keybindings.
@@ -56,7 +56,7 @@ When the user asks for a **bug fix / debug in AI Agent** and indicates auto-rele
    - Stage changed files.
    - Commit with a concise message.
    - Push to remote.
-   - Run `publish-app.bat` from repo root.
+   - Run `publish-app.bat` from repo root (publish script syncs `package.json` version from latest `CHANGELOG.md` heading before publish).
 
 4. **Require confirmation for bigger updates**
    - If the change is not a small bugfix (new feature, behavior redesign, command/config changes, breaking risk, or multi-file refactor), stop and ask for confirmation before running git push and publish.

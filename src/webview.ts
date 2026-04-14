@@ -185,6 +185,7 @@ export function getWebviewShell(initialZoom: number = 100): string {
         const imgList = document.getElementById('image-list');
         const sidebar = document.getElementById('sidebar');
         const zoomSelect = document.getElementById('zoom-select');
+        let latestHtml = '';
 
         function applyZoom() {
             if (!frame || !zoomSelect) return;
@@ -212,7 +213,8 @@ export function getWebviewShell(initialZoom: number = 100): string {
         window.addEventListener('message', event => {
             const msg = event.data;
             if (msg.command === 'update') {
-               frame.srcdoc = msg.html;
+               latestHtml = msg.html || '';
+               frame.srcdoc = latestHtml;
                renderImages(msg.images);
                applyZoom();
                const pathEl = document.getElementById('path-text');
@@ -245,6 +247,14 @@ export function getWebviewShell(initialZoom: number = 100): string {
                    '*'
                );
             }
+                if (msg.command === 'previewReplaceImage' && latestHtml && msg.oldDataUri && msg.previewDataUri) {
+                    frame.srcdoc = latestHtml.split(msg.oldDataUri).join(msg.previewDataUri);
+                    applyZoom();
+                }
+                if (msg.command === 'previewResetImage' && latestHtml) {
+                    frame.srcdoc = latestHtml;
+                    applyZoom();
+                }
         });
         
         window.addEventListener('message', event => {
@@ -338,6 +348,7 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
 <body>
     <div class="section">
         <div class="section-title">Replace image</div>
+        <div class="dims-info" id="target-line-info">Line: —</div>
         <div class="row">
             <button type="button" class="btn btn-secondary" id="btn-upload">Upload...</button>
             <span style="color: var(--vscode-descriptionForeground);">or paste Base64 below</span>
@@ -355,6 +366,8 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             <span>×</span>
             <label for="height-px">Height (px):</label>
             <input type="number" id="height-px" min="1" />
+            <label for="opacity-pct">Opacity (%):</label>
+            <input type="number" id="opacity-pct" min="0" max="100" value="100" />
         </div>
         <div class="row">
             <input type="checkbox" id="maintain-ratio" checked />
@@ -371,12 +384,15 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
     <script>
         const vscode = acquireVsCodeApi();
         let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1, originalImageW: 0, originalImageH: 0 };
+        let livePreviewTimer = null;
 
         window.addEventListener('message', function(e) {
             const msg = e.data;
             if (msg.command === 'init') {
                 state.range = msg.range;
                 state.currentDataUri = msg.currentImageDataUri || null;
+                const line = (state.range && typeof state.range.startLine === 'number') ? (state.range.startLine + 1) : null;
+                document.getElementById('target-line-info').textContent = line ? ('Line: ' + line) : 'Line: —';
                 if (state.currentDataUri) loadOldImageAndFillDims(state.currentDataUri);
             }
             if (msg.command === 'replaceImageFileData') {
@@ -390,6 +406,53 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             val = val.trim();
             if (val.indexOf('data:') === 0) return val;
             return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
+        }
+
+        function buildPreviewDataUri(onDone) {
+            if (!state.newDataUri) return;
+            const w = parseInt(document.getElementById('width-px').value, 10) || 0;
+            const h = parseInt(document.getElementById('height-px').value, 10) || 0;
+            const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
+            const opacityPct = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
+            const opacity = opacityPct / 100;
+            if (
+                state.originalImageW > 0 &&
+                state.originalImageH > 0 &&
+                w > 0 &&
+                h > 0 &&
+                (w !== state.originalImageW || h !== state.originalImageH || opacityPct !== 100)
+            ) {
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = function() {
+                    if (!ctx) return;
+                    ctx.globalAlpha = opacity;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    onDone(canvas.toDataURL('image/png'));
+                };
+                img.src = state.newDataUri;
+                return;
+            }
+            onDone(state.newDataUri);
+        }
+
+        function scheduleLivePreview() {
+            if (!state.currentDataUri || !state.newDataUri) return;
+            if (livePreviewTimer) {
+                clearTimeout(livePreviewTimer);
+            }
+            livePreviewTimer = setTimeout(function() {
+                buildPreviewDataUri(function(dataUri) {
+                    vscode.postMessage({
+                        command: 'replaceImagePreview',
+                        oldDataUri: state.currentDataUri,
+                        dataUri: dataUri,
+                    });
+                });
+            }, 120);
         }
 
         // Load the original image that currently exists in the document.
@@ -435,6 +498,7 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 document.getElementById('width-px').value = targetW;
                 document.getElementById('height-px').value = targetH;
                 updateDimsInfo();
+                scheduleLivePreview();
             };
             img.onerror = function() { state.originalImageW = 0; state.originalImageH = 0; updateDimsInfo(); };
             img.src = dataUri;
@@ -443,8 +507,10 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         function updateDimsInfo() {
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
+            const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
+            const opacity = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
             const origStr = (state.origW && state.origH) ? (state.origW + '×' + state.origH) : '—';
-            document.getElementById('dims-info').textContent = 'Original: ' + origStr + ' | New: ' + w + '×' + h;
+            document.getElementById('dims-info').textContent = 'Original: ' + origStr + ' | New: ' + w + '×' + h + ' | Opacity: ' + opacity + '%';
         }
 
         function updateHeightFromWidth() {
@@ -475,12 +541,24 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 updateHeightFromWidth();
             }
             updateDimsInfo();
+            scheduleLivePreview();
         };
         document.getElementById('height-px').oninput = function() {
             if (document.getElementById('maintain-ratio').checked) {
                 updateWidthFromHeight();
             }
             updateDimsInfo();
+            scheduleLivePreview();
+        };
+        document.getElementById('opacity-pct').oninput = function() {
+            const n = parseInt(this.value, 10);
+            if (!Number.isFinite(n)) {
+                this.value = '100';
+            } else {
+                this.value = String(Math.max(0, Math.min(100, n)));
+            }
+            updateDimsInfo();
+            scheduleLivePreview();
         };
         document.getElementById('maintain-ratio').onchange = function() {
             if (this.checked) {
@@ -494,9 +572,11 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 }
             }
             updateDimsInfo();
+            scheduleLivePreview();
         };
 
         document.getElementById('btn-cancel').onclick = function() {
+            vscode.postMessage({ command: 'replaceImagePreviewReset' });
             vscode.postMessage({ command: 'replaceImageCancel' });
         };
 
@@ -506,23 +586,10 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         };
 
         document.getElementById('btn-insert').onclick = function() {
-            const w = parseInt(document.getElementById('width-px').value, 10);
-            const h = parseInt(document.getElementById('height-px').value, 10);
             if (!state.range || !state.newDataUri) return;
-            if (state.originalImageW > 0 && state.originalImageH > 0 && (w !== state.originalImageW || h !== state.originalImageH) && w > 0 && h > 0) {
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                img.onload = function() {
-                    ctx.drawImage(img, 0, 0, w, h);
-                    vscode.postMessage({ command: 'replaceImageApply', dataUri: canvas.toDataURL('image/png'), range: state.range });
-                };
-                img.src = state.newDataUri;
-            } else {
-                vscode.postMessage({ command: 'replaceImageApply', dataUri: state.newDataUri, range: state.range });
-            }
+            buildPreviewDataUri(function(dataUri) {
+                vscode.postMessage({ command: 'replaceImageApply', dataUri: dataUri, range: state.range });
+            });
         };
     </script>
 </body>

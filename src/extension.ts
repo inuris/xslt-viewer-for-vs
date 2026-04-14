@@ -420,10 +420,13 @@ export function activate(context: vscode.ExtensionContext) {
                                 { enableScripts: true }
                             );
                             replacePanel.onDidDispose(() => {
+                                if (currentPanel) {
+                                    currentPanel.webview.postMessage({ command: 'previewResetImage' });
+                                }
                                 replacePanel = undefined;
                                 replacePendingInit = null;
                             }, null, context.subscriptions);
-                            replacePanel.webview.onDidReceiveMessage(async (msg: { command: string; dataUri?: string; range?: ImageInfo['range'] }) => {
+                            replacePanel.webview.onDidReceiveMessage(async (msg: { command: string; dataUri?: string; oldDataUri?: string; range?: ImageInfo['range'] }) => {
                                 if (!replacePanel) return;
                                 if (msg.command === 'replaceImageReady' && replacePendingInit) {
                                     replacePanel.webview.postMessage({
@@ -448,6 +451,16 @@ export function activate(context: vscode.ExtensionContext) {
                                         });
                                     }
                                 }
+                                if (msg.command === 'replaceImagePreview' && msg.dataUri && msg.oldDataUri && currentPanel) {
+                                    currentPanel.webview.postMessage({
+                                        command: 'previewReplaceImage',
+                                        oldDataUri: msg.oldDataUri,
+                                        previewDataUri: msg.dataUri,
+                                    });
+                                }
+                                if (msg.command === 'replaceImagePreviewReset' && currentPanel) {
+                                    currentPanel.webview.postMessage({ command: 'previewResetImage' });
+                                }
                                 if (msg.command === 'replaceImageApply' && msg.range && msg.dataUri) {
                                     await applyReplaceImage(msg.range, msg.dataUri);
                                     replacePanel.dispose();
@@ -459,6 +472,9 @@ export function activate(context: vscode.ExtensionContext) {
                                     if (currentPanel && activeXml && activeXslt) runUpdate();
                                 }
                                 if (msg.command === 'replaceImageCancel') {
+                                    if (currentPanel) {
+                                        currentPanel.webview.postMessage({ command: 'previewResetImage' });
+                                    }
                                     replacePanel.dispose();
                                 }
                             }, undefined, context.subscriptions);

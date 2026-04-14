@@ -49,6 +49,7 @@
     - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`, `xslt-viewer.showSnippets`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
+- **`publish-app.bat`**: Publish helper script that reads the latest version from the top `CHANGELOG.md` heading (`## x.y.z`), syncs `package.json` version to match, then publishes to VS Code Marketplace and Open VSX without auto-increment.
 
 ## 2. Core Workflows
 
@@ -89,7 +90,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Actions:**
     - **Jump:** `handleJumpToImage()` — reveal the image line in the editor.
     - **Export:** Opens `getExportImagePanelHtml()` panel — save to file via `handleSaveImage()` or copy raw base64.
-    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. **Delete image** (red text) clears the data URI at the scan range (empty string) via `applyReplaceImage(range, '')`. Normal replace uses `applyReplaceImage(range, dataUri)`.
+    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock and an **Opacity (%)** input. The dialog displays the target source **Line** for the currently selected image range. While editing, preview shows a **temporary live image update** (including width/height/opacity changes) without writing to disk. **Cancel** (or closing the panel) resets preview back to the old image. **Replace** commits the selected/resized/opacity-adjusted image via `applyReplaceImage(range, dataUri)`. **Delete image** (red text) clears the data URI at the scan range (empty string) via `applyReplaceImage(range, '')`.
 
 ### 6. Dependency Setup Check (First-Run)
 - **Trigger:** Called immediately in `activate()` via `checkDependencies()` from `setup.ts`.
@@ -119,7 +120,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
 - **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
-- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear).
+- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear), `previewReplaceImage` (temporary live image swap), `previewResetImage` (restore original preview HTML).
 - **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`. Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
 
 ## 4. Comparison with Web App (`ref/`)

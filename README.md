@@ -2,6 +2,8 @@
 
 *Transform XML with XSLT and see the result instantly — right inside VS Code.*
 
+> This extension uses Python's lxml library for XSLT processing. In my tests, it was more reliable, produced fewer unexpected errors, and was easier to debug than JavaScript alternatives such as xslt-processor, Saxon-JS, and libxslt-wasm.
+
 ---
 
 ## ✅ How to Use

@@ -2,15 +2,40 @@
 
 All notable changes to this extension will be documented in this file.
 
-## 2.2.10
+## 2.2.15
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.14
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.13
 
 ### Changed
-- **AI Agent workflow**: Documented hotfix flow for minor bugfix auto-release (fix/validate/changelog/commit/push/publish) and confirmation requirement for bigger updates.
+- **Replace image**: Added a target line indicator in the Replace dialog to show which embedded image is currently being edited.
+
+## 2.2.12
+
+### Changed
+- **Replace image**: Added an Opacity (%) control (default 100) to live preview and apply opacity-adjusted base64 output on Replace.
+
+## 2.2.11
+
+### Changed
+- **Replace image**: Added live temporary preview while picking/resizing a replacement image; Cancel (or close) restores the old preview image, and Replace commits the change.
+
+## 2.2.10
+
+### Fixed
+- Minor bugs fixed.
 
 ## 2.2.9
 
-### Changed
-- **README**: Corrected English typos and improved wording in the usage table and click-to-jump description.
+### Fixed
+- Minor bugs fixed.
 
 ## 2.2.8
 
