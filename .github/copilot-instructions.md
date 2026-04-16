@@ -9,6 +9,7 @@
 - `resources/python/transform.py` — reads JSON `{ xmlContent, xsltContent }` from stdin, writes result bytes to stdout.
 - `resources/snippets/xslt-snippets.md` — XSLT snippet definitions (Markdown); built-in snippet list.
 - `package.json` — commands (`xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSnippets`), config (`xslt-viewer.pythonPath`, `xslt-viewer.snippetsFile`), menus/keybindings.
+- Local debug packaging script: `npm run vsix:local` (compile + `npx vsce package`).
 
 **Canonical docs:** See `AI_CONTEXT.md` for workflows, rendering pipeline, auto-detection, click-to-jump, and image management. Keep that file and these instructions in sync when adding or changing features.
 

@@ -49,6 +49,7 @@
     - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`, `xslt-viewer.showSnippets`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
+- **`npm run vsix:local`**: Local debugging package workflow; runs compile then creates a VSIX (`npx vsce package`) for local install/testing.
 - **`publish-app.bat`**: Publish helper script that reads the latest version from the top `CHANGELOG.md` heading (`## x.y.z`), syncs `package.json` version to match, then publishes to VS Code Marketplace and Open VSX without auto-increment.
 
 ## 2. Core Workflows
@@ -106,7 +107,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 
 ### 7. XML/XSLT Formatter
 - **Provider:** Registered for `xml` and `xsl` languages via `vscode.languages.registerDocumentFormattingEditProvider`.
-- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically while preserving all text content exactly (no changes to whitespace inside text nodes).
+- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically and normalizes text-node ASCII whitespace (`\t`, `\n`, `\r`, space) into single spaces to avoid unintended word/line splits in literal text output. Probable encoded payload-like text blobs are left untouched.
 - **Config:** Indent size from `xslt-viewer.formatIndentSize` setting.
 
 ### 7. PDF Export

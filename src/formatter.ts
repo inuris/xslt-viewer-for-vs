@@ -1,6 +1,6 @@
 /**
- * Simple XML/XSLT formatter: indent child tags vertically, preserve all text content exactly
- * (no newlines or character changes inside text, including spaces).
+ * Simple XML/XSLT formatter: indent child tags vertically and normalize text-node whitespace
+ * (line breaks/tabs collapse to single spaces) for cleaner literal text output.
  */
 
 const enum TokenType {
@@ -384,15 +384,14 @@ function tryFormatWholeStyleBlockText(text: string, indentSize: number, depth: n
     ].filter(Boolean).join('\n');
 }
 
-/**
- * Preserve text content exactly.
- *
- * NOTE: This formatter must never alter text nodes because some XSLT templates
- * embed large base64 strings (e.g. data URIs) where any whitespace changes
- * break decoding.
- */
 function collapseTextToLine(text: string): string {
-    return text;
+    // Guardrail: keep probable encoded payloads untouched.
+    const compact = text.replace(/[\t\n\r\f\v ]+/g, '');
+    const looksEncoded = compact.length > 160 && /^[A-Za-z0-9+/=]+$/.test(compact);
+    if (looksEncoded) return text;
+
+    // XML/XPath-style normalization for text nodes: collapse ASCII whitespace to one space.
+    return text.replace(/[\t\n\r\f\v ]+/g, ' ').trim();
 }
 
 function formatWithIndent(tokens: Token[], indentSize: number): string {
@@ -420,8 +419,8 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                         afterNewline = false;
                         break;
                     }
-                    // Preserve text nodes exactly (do not normalize whitespace).
-                    out.push(t.value);
+                    const collapsed = collapseTextToLine(t.value);
+                    if (collapsed) out.push(collapsed);
                     afterNewline = false;
                 }
                 break;
@@ -480,7 +479,7 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
 }
 
 /**
- * Format XML/XSLT content: child tags on new lines with indent; all text content unchanged.
+ * Format XML/XSLT content: child tags on new lines with indent; normalize text-node whitespace.
  */
 export function formatXml(contents: string, indentSize: number = 4): string {
     const tokens = tokenize(contents);

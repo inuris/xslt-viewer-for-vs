@@ -2,6 +2,16 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.17
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.16
+
+### Fixed
+- **Formatter**: Normalize text-node line breaks/tabs to single spaces so literal text in XSLT does not get split into unintended wrapped lines after formatting.
+
 ## 2.2.15
 
 ### Fixed

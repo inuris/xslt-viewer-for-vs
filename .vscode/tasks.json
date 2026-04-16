@@ -3,6 +3,11 @@
 	"tasks": [
 		{
 			"type": "npm",
+			"script": "vsix:local",
+			"problemMatcher": []
+		},
+		{
+			"type": "npm",
 			"script": "watch",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
