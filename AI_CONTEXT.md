@@ -107,7 +107,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 
 ### 7. XML/XSLT Formatter
 - **Provider:** Registered for `xml` and `xsl` languages via `vscode.languages.registerDocumentFormattingEditProvider`.
-- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically and normalizes text-node ASCII whitespace (`\t`, `\n`, `\r`, space) into single spaces to avoid unintended word/line splits in literal text output. Probable encoded payload-like text blobs are left untouched.
+- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically, keeps opening tags on one line (attributes are whitespace-normalized outside quotes), normalizes XML comments to compact one-line `<!-- ... -->` form, and normalizes text-node **ASCII whitespace only** (`\t`, `\n`, `\r`, space) into single spaces to avoid unintended word/line splits in literal text output. Non-ASCII/invisible spacing characters (for example `U+00A0`) are preserved. Probable encoded payload-like text blobs are left untouched.
 - **Config:** Indent size from `xslt-viewer.formatIndentSize` setting.
 
 ### 7. PDF Export

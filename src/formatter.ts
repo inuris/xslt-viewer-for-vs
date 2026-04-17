@@ -176,6 +176,17 @@ function findMatchingClose(tokens: Token[], openIdx: number): { endIdx: number; 
 
 // ASCII whitespace only (excludes &#160; / U+00A0 so we preserve non-breaking space)
 const ASCII_WS = /[\t\n\r\f\v ]/;
+const ASCII_WS_GLOBAL = /[\t\n\r\f\v ]+/g;
+const ASCII_WS_EDGE = /^[\t\n\r\f\v ]+|[\t\n\r\f\v ]+$/g;
+const ASCII_WS_EDGE_END = /[\t\n\r\f\v ]+$/g;
+
+function trimAscii(value: string): string {
+    return value.replace(ASCII_WS_EDGE, '');
+}
+
+function trimAsciiEnd(value: string): string {
+    return value.replace(ASCII_WS_EDGE_END, '');
+}
 
 /** Collapse newlines and excess whitespace inside a tag to a single space; do not change quoted attribute values. Preserves &#160;. */
 function normalizeTagWhitespace(tagValue: string): string {
@@ -213,7 +224,14 @@ function normalizeTagWhitespace(tagValue: string): string {
         i++;
     }
     if (whitespaceRun) out += whitespaceRun.includes('\n') ? ' ' : whitespaceRun;
-    return out.replace(/^[\t\n\r\f\v ]+|[\t\n\r\f\v ]+$/g, '');
+    return trimAscii(out);
+}
+
+/** Collapse whitespace/newlines inside <!-- --> comment body to a single space. */
+function normalizeCommentWhitespace(commentValue: string): string {
+    if (!commentValue.startsWith('<!--') || !commentValue.endsWith('-->')) return commentValue;
+    const inner = trimAscii(commentValue.slice(4, -3).replace(ASCII_WS_GLOBAL, ' '));
+    return `<!-- ${inner} -->`;
 }
 
 /**
@@ -230,7 +248,7 @@ function formatCss(css: string, indentSize: number): string {
     let inComment = false; // /* */
 
     const flushLine = () => {
-        const t = line.trim();
+        const t = trimAscii(line);
         if (t) lines.push(indentStr.repeat(depth) + t);
         line = '';
     };
@@ -267,9 +285,9 @@ function formatCss(css: string, indentSize: number): string {
         }
 
         if (c === '{') {
-            line = line.trimEnd();
+            line = trimAsciiEnd(line);
             if (line) {
-                lines.push(indentStr.repeat(depth) + line.trim() + ' {');
+                lines.push(indentStr.repeat(depth) + trimAscii(line) + ' {');
             } else {
                 lines.push(indentStr.repeat(depth) + '{');
             }
@@ -279,7 +297,7 @@ function formatCss(css: string, indentSize: number): string {
             continue;
         }
         if (c === '}') {
-            const t = line.trimEnd();
+            const t = trimAsciiEnd(line);
             if (t) {
                 lines.push(indentStr.repeat(depth) + t);
                 line = '';
@@ -298,7 +316,7 @@ function formatCss(css: string, indentSize: number): string {
             continue;
         }
         if (c === '\n' || c === '\r') {
-            const t = line.trim();
+            const t = trimAscii(line);
             if (t) lines.push(indentStr.repeat(depth) + t);
             line = '';
             i++;
@@ -307,9 +325,9 @@ function formatCss(css: string, indentSize: number): string {
         line += c;
         i++;
     }
-    const t = line.trim();
+    const t = trimAscii(line);
     if (t) lines.push(indentStr.repeat(depth) + t);
-    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return trimAscii(lines.join('\n').replace(/\n{3,}/g, '\n\n'));
 }
 
 /** Format CSS while preserving any inline data:image;base64,... segments (quoted or unquoted). */
@@ -372,7 +390,7 @@ function tryFormatWholeStyleBlockText(text: string, indentSize: number, depth: n
 
     const indentStr = ' '.repeat(indentSize);
     const baseIndent = indentStr.repeat(depth);
-    const innerFormatted = formatCssPreservingDataUris(inner.trim(), indentSize);
+    const innerFormatted = formatCssPreservingDataUris(trimAscii(inner), indentSize);
     const innerWithIndent = innerFormatted
         ? innerFormatted.split('\n').map((line) => baseIndent + indentStr + line).join('\n')
         : '';
@@ -386,12 +404,12 @@ function tryFormatWholeStyleBlockText(text: string, indentSize: number, depth: n
 
 function collapseTextToLine(text: string): string {
     // Guardrail: keep probable encoded payloads untouched.
-    const compact = text.replace(/[\t\n\r\f\v ]+/g, '');
+    const compact = text.replace(ASCII_WS_GLOBAL, '');
     const looksEncoded = compact.length > 160 && /^[A-Za-z0-9+/=]+$/.test(compact);
     if (looksEncoded) return text;
 
     // XML/XPath-style normalization for text nodes: collapse ASCII whitespace to one space.
-    return text.replace(/[\t\n\r\f\v ]+/g, ' ').trim();
+    return trimAscii(text.replace(ASCII_WS_GLOBAL, ' '));
 }
 
 function formatWithIndent(tokens: Token[], indentSize: number): string {
@@ -426,17 +444,20 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 break;
             }
             case TokenType.PI:
-            case TokenType.Comment:
             case TokenType.CDATA:
             case TokenType.Doctype:
                 if (!afterNewline) out.push('\n');
                 out.push(indentStr.repeat(depth), t.value);
                 afterNewline = false;
                 break;
+            case TokenType.Comment:
+                if (!afterNewline) out.push('\n');
+                out.push(indentStr.repeat(depth), normalizeCommentWhitespace(t.value));
+                afterNewline = false;
+                break;
             case TokenType.SelfCloseTag:
                 if (!afterNewline) out.push('\n');
-                // If a tag contains an embedded base64/data-URI, never normalize its whitespace.
-                out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
+                out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
                 afterNewline = false;
                 break;
             case TokenType.OpenTag: {
@@ -444,12 +465,14 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                 const tagName = t.tagName;
                 if (isInline) {
                     if (!afterNewline) out.push('\n');
-                    out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
+                    out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
                     for (let j = idx + 1; j < endIdx; j++) {
                         const inner = tokens[j];
                         if (inner.type === TokenType.Text) {
                             out.push(collapseTextToLine(inner.value));
-                        } else if (inner.type === TokenType.Comment || inner.type === TokenType.CDATA || inner.type === TokenType.PI) {
+                        } else if (inner.type === TokenType.Comment) {
+                            out.push(normalizeCommentWhitespace(inner.value));
+                        } else if (inner.type === TokenType.CDATA || inner.type === TokenType.PI) {
                             out.push(inner.value);
                         }
                     }
@@ -458,7 +481,7 @@ function formatWithIndent(tokens: Token[], indentSize: number): string {
                     afterNewline = false;
                 } else {
                     if (!afterNewline) out.push('\n');
-                    out.push(indentStr.repeat(depth), t.value.includes('base64,') ? t.value : normalizeTagWhitespace(t.value));
+                    out.push(indentStr.repeat(depth), normalizeTagWhitespace(t.value));
                     depth++;
                     afterNewline = false;
                 }

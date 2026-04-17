@@ -2,6 +2,16 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.19
+
+### Fixed
+- **Formatter**: Restrict whitespace trimming/collapsing to ASCII whitespace only, preserving non-ASCII invisible spaces used in source files.
+
+## 2.2.18
+
+### Fixed
+- **Formatter**: Keep opening-tag attributes on one line and compact XML comments by trimming line breaks/multi-space into single-line `<!-- ... -->` output.
+
 ## 2.2.17
 
 ### Fixed
