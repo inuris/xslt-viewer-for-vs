@@ -65,3 +65,31 @@ When the user asks for a **bug fix / debug in AI Agent** and indicates auto-rele
 5. **Safety guardrails**
    - Never run destructive git commands.
    - If validation fails or publish fails, stop and report clearly.
+
+---
+
+# Agent Operating Principles (Adopted)
+
+Apply these defaults for non-trivial coding tasks to improve agent quality and maintainability:
+
+1. **Think Before Coding**
+   - State assumptions when requirements are ambiguous.
+   - If multiple valid interpretations exist, ask one concise clarifying question before implementing.
+   - Prefer explicit tradeoffs over silent guesses.
+
+2. **Simplicity First**
+   - Implement the minimum code that solves the requested problem.
+   - Do not add speculative options, abstractions, or configuration unless explicitly requested.
+   - If a solution feels overengineered, simplify before finalizing.
+
+3. **Surgical Changes**
+   - Touch only lines related to the request.
+   - Do not refactor unrelated code, style, comments, or naming in the same patch.
+   - Keep existing project style/patterns unless change is required for correctness.
+
+4. **Goal-Driven Verification**
+   - Define concrete success criteria per task (build, tests, or reproducible manual checks).
+   - For bug fixes, reproduce first when feasible, then verify the fix and check for regressions.
+   - For multi-step work, implement incrementally with validation after each major step.
+
+**Pragmatic mode:** For obvious one-line/trivial edits, apply these principles with lightweight rigor to avoid slowing down simple tasks.

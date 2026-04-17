@@ -5,6 +5,10 @@ applyTo: "**/*.ts"
 # Extension TypeScript
 
 - Use `vscode` API for editor, workspace, commands, webview; register disposables on `context.subscriptions`.
+- Think before coding: if requirement is ambiguous and multiple valid interpretations exist, ask one concise clarifying question instead of guessing.
+- Simplicity first: implement only what was requested; avoid speculative abstractions/options.
+- Surgical changes: limit edits to request-related lines and preserve existing project style unless correctness requires deviation.
+- Goal-driven checks: for bug fixes, reproduce when feasible, then verify fix + no regression (compile/tests/manual check).
 - Python is invoked via `child_process.spawn(pythonPath, [scriptPath])`; send JSON to stdin, read result from stdout.
 - Webview: use `postMessage` for extension ↔ webview; handle commands like `update` (optional `highlightLine`), `highlightPreviewLine`, `jumpToCode`, `switchFile`, `exportPdf`, `saveImage`, `replaceImage`, `replaceImageDelete` (clear embedded image), `jumpToImage`, and temporary replace-preview commands (`replaceImagePreview` / `replaceImagePreviewReset` from dialog, `previewReplaceImage` / `previewResetImage` in preview shell).
 - Replace dialog UX: width/height/opacity edits are preview-only until user confirms; Cancel resets temporary preview, Replace commits final base64 (including resize/opacity transforms).

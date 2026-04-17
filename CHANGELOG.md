@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.20
+
+### Fixed
+- Minor bugs fixed.
+
 ## 2.2.19
 
 ### Fixed
