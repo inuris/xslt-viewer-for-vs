@@ -151,6 +151,45 @@ Update condition to display 10-14 characters
 
 ---
 
+## Fix MST (label type)
+Update condition to display 10-14 characters
+
+```xml
+<xsl:choose>
+    <xsl:when test="string-length(//NNT/MST)=14">
+        <label>-</label>
+        <label class="input-code" maxlength="1" style="margin-right:0px;">
+            <xsl:value-of select="substring(//NNT/MST,12,1)" />
+        </label>
+        <label class="input-code" maxlength="1" style="margin-right:0px;">
+            <xsl:value-of select="substring(//NNT/MST,13,1)" />
+        </label>
+        <label class="input-code" maxlength="1" style="margin-right:0px;">
+            <xsl:value-of select="substring(//NNT/MST,14,1)" />
+        </label>
+    </xsl:when>
+    <xsl:otherwise>
+        <xsl:if test="substring(//NNT/MST,11,1) !=''">
+            <label class="input-code" maxlength="1" style="margin-right:0px;">
+                <xsl:value-of select="substring(//NNT/MST,11,1)" />
+            </label>
+        </xsl:if>
+        <xsl:if test="substring(//NNT/MST,12,1) !=''">
+            <label class="input-code" maxlength="1" style="margin-right:0px;">
+                <xsl:value-of select="substring(//NNT/MST,12,1)" />
+            </label>
+        </xsl:if>
+        <xsl:if test="substring(//NNT/MST,13,1) !=''">
+            <label class="input-code" maxlength="1" style="margin-right:0px;">
+                <xsl:value-of select="substring(//NNT/MST,13,1)" />
+            </label>
+        </xsl:if>
+    </xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
 ## Add Replacement/Adjustment Invoice block
 Add a block for replacement or adjustment invoices
 
