@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.22
+
+### Changed
+- **Snippets**: Updated "Convert Number to Vietnamese Words" snippet with improved formatting and added call example.
+
 ## 2.2.21
 
 ### Changed
