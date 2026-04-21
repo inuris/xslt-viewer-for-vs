@@ -8,7 +8,7 @@
   },
   "description": "Live XSLT preview, formatter, and image manager",
   "icon": "icon.png",
-  "version": "2.2.20",
+  "version": "2.2.21",
   "engines": {
     "vscode": "^1.96.0"
   },

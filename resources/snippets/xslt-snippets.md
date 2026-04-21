@@ -553,7 +553,7 @@ Add XML tag: Buyer phone (`NMua/SDThoai`)
 ---
 
 ## Convert Number to Vietnamese Words
-Convert a number into a Vietnamese text string
+Convert a number into a Vietnamese text string (Đọc số tiền bằng tiếng Việt)
 
 ```xml
 <!-- numberToVietnamese Template -->
@@ -582,30 +582,30 @@ Convert a number into a Vietnamese text string
     <xsl:choose>
         <xsl:when test="$h > 0">
             <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$h"/></xsl:call-template>
-            <xsl:text> trăm</xsl:text>
+            <xsl:text>&#160;trăm</xsl:text>
             <xsl:choose>
                 <xsl:when test="$t = 0 and $u = 0"/>
                 <xsl:when test="$t = 0">
-                    <xsl:text> lẻ </xsl:text>
+                    <xsl:text>&#160;lẻ&#160;</xsl:text>
                     <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
                 </xsl:when>
                 <xsl:when test="$t = 1">
-                    <xsl:text> mười</xsl:text>
+                    <xsl:text>&#160;mười</xsl:text>
                     <xsl:choose>
                         <xsl:when test="$u = 0"/>
-                        <xsl:when test="$u = 5"><xsl:text> lăm</xsl:text></xsl:when>
-                        <xsl:otherwise><xsl:text> </xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+                        <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+                        <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
                     </xsl:choose>
                 </xsl:when>
                 <xsl:otherwise>
-                    <xsl:text> </xsl:text>
+                    <xsl:text>&#160;</xsl:text>
                     <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
-                    <xsl:text> mươi</xsl:text>
+                    <xsl:text>&#160;mươi</xsl:text>
                     <xsl:choose>
                         <xsl:when test="$u = 0"/>
-                        <xsl:when test="$u = 1"><xsl:text> mốt</xsl:text></xsl:when>
-                        <xsl:when test="$u = 5"><xsl:text> lăm</xsl:text></xsl:when>
-                        <xsl:otherwise><xsl:text> </xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+                        <xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
+                        <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+                        <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
                     </xsl:choose>
                 </xsl:otherwise>
             </xsl:choose>
@@ -616,7 +616,7 @@ Convert a number into a Vietnamese text string
                 <xsl:when test="$t = 0 and $u = 0"/>
                 <xsl:otherwise>
                     <!-- "lẻ" chỉ thêm khi không có hàng chục (t=0) -->
-                    <xsl:if test="$needLe = '1' and $t = 0"><xsl:text>lẻ </xsl:text></xsl:if>
+                    <xsl:if test="$needLe = '1' and $t = 0"><xsl:text>lẻ&#160;</xsl:text></xsl:if>
                     <xsl:choose>
                         <xsl:when test="$t = 0">
                             <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
@@ -625,18 +625,18 @@ Convert a number into a Vietnamese text string
                             <xsl:text>mười</xsl:text>
                             <xsl:choose>
                                 <xsl:when test="$u = 0"/>
-                                <xsl:when test="$u = 5"><xsl:text> lăm</xsl:text></xsl:when>
-                                <xsl:otherwise><xsl:text> </xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+                                <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+                                <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
                             </xsl:choose>
                         </xsl:when>
                         <xsl:otherwise>
                             <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
-                            <xsl:text> mươi</xsl:text>
+                            <xsl:text>&#160;mươi</xsl:text>
                             <xsl:choose>
                                 <xsl:when test="$u = 0"/>
-                                <xsl:when test="$u = 1"><xsl:text> mốt</xsl:text></xsl:when>
-                                <xsl:when test="$u = 5"><xsl:text> lăm</xsl:text></xsl:when>
-                                <xsl:otherwise><xsl:text> </xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+                                <xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
+                                <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+                                <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
                             </xsl:choose>
                         </xsl:otherwise>
                     </xsl:choose>
@@ -656,24 +656,24 @@ Convert a number into a Vietnamese text string
     <xsl:variable name="donvi" select="$rem2 mod 1000"/>
     <xsl:if test="$ty > 0">
         <xsl:call-template name="vn_group"><xsl:with-param name="g" select="$ty"/><xsl:with-param name="needLe" select="'0'"/></xsl:call-template>
-        <xsl:text> tỷ</xsl:text>
-        <xsl:if test="$rem1 > 0"><xsl:text> </xsl:text></xsl:if>
+        <xsl:text>&#160;tỷ</xsl:text>
+        <xsl:if test="$rem1 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
     </xsl:if>
     <xsl:if test="$trieu > 0">
         <xsl:call-template name="vn_group">
             <xsl:with-param name="g" select="$trieu"/>
             <xsl:with-param name="needLe"><xsl:choose><xsl:when test="$ty > 0 and $trieu &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
         </xsl:call-template>
-        <xsl:text> triệu</xsl:text>
-        <xsl:if test="$rem2 > 0"><xsl:text> </xsl:text></xsl:if>
+        <xsl:text>&#160;triệu</xsl:text>
+        <xsl:if test="$rem2 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
     </xsl:if>
     <xsl:if test="$nghin > 0">
         <xsl:call-template name="vn_group">
             <xsl:with-param name="g" select="$nghin"/>
             <xsl:with-param name="needLe"><xsl:choose><xsl:when test="($ty > 0 or $trieu > 0) and $nghin &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
         </xsl:call-template>
-        <xsl:text> nghìn</xsl:text>
-        <xsl:if test="$donvi > 0"><xsl:text> </xsl:text></xsl:if>
+        <xsl:text>&#160;nghìn</xsl:text>
+        <xsl:if test="$donvi > 0"><xsl:text>&#160;</xsl:text></xsl:if>
     </xsl:if>
     <xsl:if test="$donvi > 0">
         <xsl:call-template name="vn_group">
@@ -695,7 +695,7 @@ Convert a number into a Vietnamese text string
             </xsl:variable>
             <!-- Viết hoa chữ cái đầu (chỉ xử lý a-z vì các từ đầu tiếng Việt bắt đầu bằng phụ âm ASCII) -->
             <xsl:value-of select="concat(translate(substring($words,1,1),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'), substring($words,2))"/>
-            <xsl:text> đồng</xsl:text>
+            <xsl:text>&#160;đồng</xsl:text>
         </xsl:otherwise>
     </xsl:choose>
 </xsl:template>
