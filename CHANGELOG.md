@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.23
+
+### Fixed
+- **Snippets**: Fixed missing closing `</xsl:choose>` tag in "Add Signature Block" snippet.
+
 ## 2.2.22
 
 ### Changed

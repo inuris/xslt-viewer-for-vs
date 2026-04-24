@@ -276,6 +276,7 @@ Add a signature block with signer and signing date
             </p>
         </div>
     </xsl:when>
+</xsl:choose>
 ```
 
 ---
