@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.24
+
+### Changed
+- **Snippets**: Updated "Convert Number to Vietnamese Words" snippet to support negative values.
+
 ## 2.2.23
 
 ### Fixed

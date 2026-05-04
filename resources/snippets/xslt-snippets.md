@@ -559,146 +559,148 @@ Convert a number into a Vietnamese text string (Đọc số tiền bằng tiến
 ```xml
 <!-- numberToVietnamese Template -->
 <xsl:template name="vn_digitToWord">
-    <xsl:param name="d"/>
-    <xsl:choose>
-        <xsl:when test="$d = 0">không</xsl:when>
-        <xsl:when test="$d = 1">một</xsl:when>
-        <xsl:when test="$d = 2">hai</xsl:when>
-        <xsl:when test="$d = 3">ba</xsl:when>
-        <xsl:when test="$d = 4">bốn</xsl:when>
-        <xsl:when test="$d = 5">năm</xsl:when>
-        <xsl:when test="$d = 6">sáu</xsl:when>
-        <xsl:when test="$d = 7">bảy</xsl:when>
-        <xsl:when test="$d = 8">tám</xsl:when>
-        <xsl:when test="$d = 9">chín</xsl:when>
-    </xsl:choose>
+	<xsl:param name="d"/>
+	<xsl:choose>
+		<xsl:when test="$d = 0">không</xsl:when>
+		<xsl:when test="$d = 1">một</xsl:when>
+		<xsl:when test="$d = 2">hai</xsl:when>
+		<xsl:when test="$d = 3">ba</xsl:when>
+		<xsl:when test="$d = 4">bốn</xsl:when>
+		<xsl:when test="$d = 5">năm</xsl:when>
+		<xsl:when test="$d = 6">sáu</xsl:when>
+		<xsl:when test="$d = 7">bảy</xsl:when>
+		<xsl:when test="$d = 8">tám</xsl:when>
+		<xsl:when test="$d = 9">chín</xsl:when>
+	</xsl:choose>
 </xsl:template>
 <!-- Chuyển nhóm 3 chữ số (1-999) sang chữ. needLe='1': thêm "lẻ" khi hàng trăm = 0 và chỉ có hàng đơn vị -->
 <xsl:template name="vn_group">
-    <xsl:param name="g"/>
-    <xsl:param name="needLe" select="'0'"/>
-    <xsl:variable name="h" select="floor($g div 100)"/>
-    <xsl:variable name="t" select="floor(($g mod 100) div 10)"/>
-    <xsl:variable name="u" select="$g mod 10"/>
-    <xsl:choose>
-        <xsl:when test="$h > 0">
-            <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$h"/></xsl:call-template>
-            <xsl:text>&#160;trăm</xsl:text>
-            <xsl:choose>
-                <xsl:when test="$t = 0 and $u = 0"/>
-                <xsl:when test="$t = 0">
-                    <xsl:text>&#160;lẻ&#160;</xsl:text>
-                    <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
-                </xsl:when>
-                <xsl:when test="$t = 1">
-                    <xsl:text>&#160;mười</xsl:text>
-                    <xsl:choose>
-                        <xsl:when test="$u = 0"/>
-                        <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
-                        <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
-                    </xsl:choose>
-                </xsl:when>
-                <xsl:otherwise>
-                    <xsl:text>&#160;</xsl:text>
-                    <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
-                    <xsl:text>&#160;mươi</xsl:text>
-                    <xsl:choose>
-                        <xsl:when test="$u = 0"/>
-                        <xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
-                        <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
-                        <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
-                    </xsl:choose>
-                </xsl:otherwise>
-            </xsl:choose>
-        </xsl:when>
-        <xsl:otherwise>
-            <!-- h = 0: nhóm dưới 100 -->
-            <xsl:choose>
-                <xsl:when test="$t = 0 and $u = 0"/>
-                <xsl:otherwise>
-                    <!-- "lẻ" chỉ thêm khi không có hàng chục (t=0) -->
-                    <xsl:if test="$needLe = '1' and $t = 0"><xsl:text>lẻ&#160;</xsl:text></xsl:if>
-                    <xsl:choose>
-                        <xsl:when test="$t = 0">
-                            <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
-                        </xsl:when>
-                        <xsl:when test="$t = 1">
-                            <xsl:text>mười</xsl:text>
-                            <xsl:choose>
-                                <xsl:when test="$u = 0"/>
-                                <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
-                                <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
-                            </xsl:choose>
-                        </xsl:when>
-                        <xsl:otherwise>
-                            <xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
-                            <xsl:text>&#160;mươi</xsl:text>
-                            <xsl:choose>
-                                <xsl:when test="$u = 0"/>
-                                <xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
-                                <xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
-                                <xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
-                            </xsl:choose>
-                        </xsl:otherwise>
-                    </xsl:choose>
-                </xsl:otherwise>
-            </xsl:choose>
-        </xsl:otherwise>
-    </xsl:choose>
+	<xsl:param name="g"/>
+	<xsl:param name="needLe" select="'0'"/>
+	<xsl:variable name="h" select="floor($g div 100)"/>
+	<xsl:variable name="t" select="floor(($g mod 100) div 10)"/>
+	<xsl:variable name="u" select="$g mod 10"/>
+	<xsl:choose>
+		<xsl:when test="$h > 0">
+			<xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$h"/></xsl:call-template>
+			<xsl:text>&#160;trăm</xsl:text>
+			<xsl:choose>
+				<xsl:when test="$t = 0 and $u = 0"/>
+				<xsl:when test="$t = 0">
+					<xsl:text>&#160;lẻ&#160;</xsl:text>
+					<xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
+				</xsl:when>
+				<xsl:when test="$t = 1">
+					<xsl:text>&#160;mười</xsl:text>
+					<xsl:choose>
+						<xsl:when test="$u = 0"/>
+						<xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+						<xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+					</xsl:choose>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:text>&#160;</xsl:text>
+					<xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
+					<xsl:text>&#160;mươi</xsl:text>
+					<xsl:choose>
+						<xsl:when test="$u = 0"/>
+						<xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
+						<xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+						<xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+					</xsl:choose>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:when>
+		<xsl:otherwise>
+			<!-- h = 0: nhóm dưới 100 -->
+			<xsl:choose>
+				<xsl:when test="$t = 0 and $u = 0"/>
+				<xsl:otherwise>
+					<!-- "lẻ" chỉ thêm khi không có hàng chục (t=0) -->
+					<xsl:if test="$needLe = '1' and $t = 0"><xsl:text>lẻ&#160;</xsl:text></xsl:if>
+					<xsl:choose>
+						<xsl:when test="$t = 0">
+							<xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template>
+						</xsl:when>
+						<xsl:when test="$t = 1">
+							<xsl:text>mười</xsl:text>
+							<xsl:choose>
+								<xsl:when test="$u = 0"/>
+								<xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+								<xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+							</xsl:choose>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$t"/></xsl:call-template>
+							<xsl:text>&#160;mươi</xsl:text>
+							<xsl:choose>
+								<xsl:when test="$u = 0"/>
+								<xsl:when test="$u = 1"><xsl:text>&#160;mốt</xsl:text></xsl:when>
+								<xsl:when test="$u = 5"><xsl:text>&#160;lăm</xsl:text></xsl:when>
+								<xsl:otherwise><xsl:text>&#160;</xsl:text><xsl:call-template name="vn_digitToWord"><xsl:with-param name="d" select="$u"/></xsl:call-template></xsl:otherwise>
+							</xsl:choose>
+						</xsl:otherwise>
+					</xsl:choose>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:otherwise>
+	</xsl:choose>
 </xsl:template>
 <!-- Chuyển số nguyên sang chuỗi tiếng Việt (không có "đồng", không viết hoa) -->
 <xsl:template name="vn_convertNumber">
-    <xsl:param name="n"/>
-    <xsl:variable name="ty"    select="floor($n div 1000000000)"/>
-    <xsl:variable name="rem1"  select="$n mod 1000000000"/>
-    <xsl:variable name="trieu" select="floor($rem1 div 1000000)"/>
-    <xsl:variable name="rem2"  select="$rem1 mod 1000000"/>
-    <xsl:variable name="nghin" select="floor($rem2 div 1000)"/>
-    <xsl:variable name="donvi" select="$rem2 mod 1000"/>
-    <xsl:if test="$ty > 0">
-        <xsl:call-template name="vn_group"><xsl:with-param name="g" select="$ty"/><xsl:with-param name="needLe" select="'0'"/></xsl:call-template>
-        <xsl:text>&#160;tỷ</xsl:text>
-        <xsl:if test="$rem1 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
-    </xsl:if>
-    <xsl:if test="$trieu > 0">
-        <xsl:call-template name="vn_group">
-            <xsl:with-param name="g" select="$trieu"/>
-            <xsl:with-param name="needLe"><xsl:choose><xsl:when test="$ty > 0 and $trieu &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
-        </xsl:call-template>
-        <xsl:text>&#160;triệu</xsl:text>
-        <xsl:if test="$rem2 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
-    </xsl:if>
-    <xsl:if test="$nghin > 0">
-        <xsl:call-template name="vn_group">
-            <xsl:with-param name="g" select="$nghin"/>
-            <xsl:with-param name="needLe"><xsl:choose><xsl:when test="($ty > 0 or $trieu > 0) and $nghin &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
-        </xsl:call-template>
-        <xsl:text>&#160;nghìn</xsl:text>
-        <xsl:if test="$donvi > 0"><xsl:text>&#160;</xsl:text></xsl:if>
-    </xsl:if>
-    <xsl:if test="$donvi > 0">
-        <xsl:call-template name="vn_group">
-            <xsl:with-param name="g" select="$donvi"/>
-            <xsl:with-param name="needLe"><xsl:choose><xsl:when test="($ty > 0 or $trieu > 0 or $nghin > 0) and $donvi &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
-        </xsl:call-template>
-    </xsl:if>
+	<xsl:param name="n"/>
+	<xsl:variable name="ty"    select="floor($n div 1000000000)"/>
+	<xsl:variable name="rem1"  select="$n mod 1000000000"/>
+	<xsl:variable name="trieu" select="floor($rem1 div 1000000)"/>
+	<xsl:variable name="rem2"  select="$rem1 mod 1000000"/>
+	<xsl:variable name="nghin" select="floor($rem2 div 1000)"/>
+	<xsl:variable name="donvi" select="$rem2 mod 1000"/>
+	<xsl:if test="$ty > 0">
+		<xsl:call-template name="vn_group"><xsl:with-param name="g" select="$ty"/><xsl:with-param name="needLe" select="'0'"/></xsl:call-template>
+		<xsl:text>&#160;tỷ</xsl:text>
+		<xsl:if test="$rem1 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
+	</xsl:if>
+	<xsl:if test="$trieu > 0">
+		<xsl:call-template name="vn_group">
+			<xsl:with-param name="g" select="$trieu"/>
+			<xsl:with-param name="needLe"><xsl:choose><xsl:when test="$ty > 0 and $trieu &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
+		</xsl:call-template>
+		<xsl:text>&#160;triệu</xsl:text>
+		<xsl:if test="$rem2 > 0"><xsl:text>&#160;</xsl:text></xsl:if>
+	</xsl:if>
+	<xsl:if test="$nghin > 0">
+		<xsl:call-template name="vn_group">
+			<xsl:with-param name="g" select="$nghin"/>
+			<xsl:with-param name="needLe"><xsl:choose><xsl:when test="($ty > 0 or $trieu > 0) and $nghin &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
+		</xsl:call-template>
+		<xsl:text>&#160;nghìn</xsl:text>
+		<xsl:if test="$donvi > 0"><xsl:text>&#160;</xsl:text></xsl:if>
+	</xsl:if>
+	<xsl:if test="$donvi > 0">
+		<xsl:call-template name="vn_group">
+			<xsl:with-param name="g" select="$donvi"/>
+			<xsl:with-param name="needLe"><xsl:choose><xsl:when test="($ty > 0 or $trieu > 0 or $nghin > 0) and $donvi &lt; 100">1</xsl:when><xsl:otherwise>0</xsl:otherwise></xsl:choose></xsl:with-param>
+		</xsl:call-template>
+	</xsl:if>
 </xsl:template>
 <!-- Gọi template này để đọc số tiền VNĐ bằng chữ (có viết hoa chữ đầu, có " đồng") -->
 <!-- Ví dụ: <xsl:call-template name="numberToVietnamese"><xsl:with-param name="amount" select="round(../../../TTChung/TGia * ../../TToan/TgTTTBSo)"/></xsl:call-template> -->
 <xsl:template name="numberToVietnamese">
-    <xsl:param name="amount"/>
-    <xsl:variable name="n" select="floor(number(translate(string($amount), ',', '.')))"/>
-    <xsl:choose>
-        <xsl:when test="string($n) = 'NaN' or $n = 0">Không đồng</xsl:when>
-        <xsl:otherwise>
-            <xsl:variable name="words">
-                <xsl:call-template name="vn_convertNumber"><xsl:with-param name="n" select="$n"/></xsl:call-template>
-            </xsl:variable>
-            <!-- Viết hoa chữ cái đầu (chỉ xử lý a-z vì các từ đầu tiếng Việt bắt đầu bằng phụ âm ASCII) -->
-            <xsl:value-of select="concat(translate(substring($words,1,1),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'), substring($words,2))"/>
-            <xsl:text>&#160;đồng</xsl:text>
-        </xsl:otherwise>
-    </xsl:choose>
+	<xsl:param name="amount"/>
+	<xsl:variable name="n" select="floor(number(translate(string($amount), ',', '.')))"/>
+	<xsl:choose>
+		<xsl:when test="string($n) = 'NaN' or $n = 0">Không đồng</xsl:when>
+		<xsl:otherwise>
+			<xsl:variable name="absN" select="$n * ($n &gt; 0) - $n * ($n &lt; 0)"/>
+			<xsl:variable name="words">
+				<xsl:call-template name="vn_convertNumber"><xsl:with-param name="n" select="$absN"/></xsl:call-template>
+			</xsl:variable>
+			<xsl:variable name="capitalized" select="concat(translate(substring($words,1,1),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'), substring($words,2))"/>
+			<xsl:if test="$n &lt; 0"><xsl:text>(Âm)&#160;</xsl:text></xsl:if>
+			<xsl:value-of select="$capitalized"/>
+			<xsl:text>&#160;đồng</xsl:text>
+		</xsl:otherwise>
+	</xsl:choose>
 </xsl:template>
 <!-- END numberToVietnamese Template -->
 
