@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.25
+
+### Changed
+- **Snippets**: Updated "Update STT by TChat" snippet to hide STT for `TChat = 4` and support `Remark` display fallback.
+
 ## 2.2.24
 
 ### Changed

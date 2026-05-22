@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\Users\\\\khoala\\\\.pyenv\\\\pyenv-win\\\\versions\\\\3.12.1\\\\python.exe\" -c \"import lxml; print\\('lxml OK'\\)\")"
+    ]
+  }
+}
