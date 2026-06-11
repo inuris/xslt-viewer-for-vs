@@ -5,33 +5,53 @@ echo  XSLT Viewer - Publisher Tool
 echo ==========================================
 echo.
 
-REM Read current version from package.json using Node (required for this script)
-for /f "delims=" %%v in ('node -p "require('./package.json').version"') do set CUR_VERSION=%%v
-if "!CUR_VERSION!"=="" (
-    echo [WARN] Could not read version from package.json
-) else (
-    echo Current version: !CUR_VERSION!
+REM Ensure Node is available (required for version read/write)
+where node >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Node.js is required but was not found in PATH.
+    pause
+    exit /b 1
 )
+
+REM Read latest version from the first semantic version heading in CHANGELOG.md (e.g. "## 2.2.13")
+set "CHANGELOG_VERSION="
+for /f "tokens=2" %%v in ('findstr /r /c:"^## [0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" CHANGELOG.md') do (
+    if not defined CHANGELOG_VERSION set "CHANGELOG_VERSION=%%v"
+)
+
+if "!CHANGELOG_VERSION!"=="" (
+    echo [ERROR] Could not read latest version from CHANGELOG.md
+    echo Expected a heading like: ## 2.2.13
+    pause
+    exit /b 1
+)
+
+REM Read current package version
+for /f "delims=" %%v in ('node -p "require('./package.json').version"') do set "CUR_VERSION=%%v"
+if "!CUR_VERSION!"=="" (
+    echo [ERROR] Could not read version from package.json
+    pause
+    exit /b 1
+)
+
+echo Latest CHANGELOG version: !CHANGELOG_VERSION!
+echo Current package version:  !CUR_VERSION!
+
+REM Sync package.json version to CHANGELOG top version before publishing
+if /I not "!CUR_VERSION!"=="!CHANGELOG_VERSION!" (
+    echo [INFO] Syncing package.json version to !CHANGELOG_VERSION! ...
+    call node -e "const fs=require('fs'); const p='./package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); pkg.version=process.argv[1]; fs.writeFileSync(p, JSON.stringify(pkg,null,2)+'\n');" !CHANGELOG_VERSION!
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Failed to update package.json version.
+        pause
+        exit /b %ERRORLEVEL%
+    )
+) else (
+    echo [INFO] package.json is already aligned with CHANGELOG.
+)
+
 echo.
-
-echo Select update type:
-echo 1. Patch (0.0.1 - 0.0.2) [Default]
-echo 2. Minor (0.0.1 - 0.1.0)
-echo 3. Major (0.0.1 - 1.0.0)
-echo 4. Publish current version (no auto-increment)
-echo.
-
-set /p choice="Enter choice (1-4): "
-if "%choice%"=="" set choice=1
-
-set ARG=patch
-if "%choice%"=="1" set ARG=patch
-if "%choice%"=="2" set ARG=minor
-if "%choice%"=="3" set ARG=major
-if "%choice%"=="4" set ARG=
-
-echo.
-echo Publishing with argument: "%ARG%" ...
+echo Publishing version !CHANGELOG_VERSION! (no auto-increment) ...
 echo (If prompted about missing repository/license, the script will auto-answer 'y')
 echo.
 
@@ -90,12 +110,10 @@ setlocal EnableDelayedExpansion
 echo.
 echo [1/2] Publishing to VS Code Marketplace...
 @REM Use a test file to communicate with process
-(echo y) | vsce publish %ARG% -p %VS_TOKEN%
+(echo y) | vsce publish -p %VS_TOKEN%
 set "VSCE_CODE=%ERRORLEVEL%"
 if "%VSCE_CODE%"=="0" (
     echo [SUCCESS] Published to VS Code Marketplace
-) else if "%ARG%"=="" (
-    echo [WARN] VS Code Marketplace publish failed. Continuing to Open VSX...
 ) else (
     echo.
     echo [ERROR] VS Code Marketplace publish failed.

@@ -49,6 +49,8 @@
     - Commands: `xslt-viewer.preview`, `xslt-viewer.switchFile`, `xslt-viewer.exportPdf`, `xslt-viewer.showSetup`, `xslt-viewer.showSnippets`.
     - Keyboard shortcut: `Ctrl+Alt+X` / `Cmd+Alt+X` for preview.
 - **`install.bat`**: Helper script to `npm install`, `npm run compile`, and `pip install lxml` for first-time setup.
+- **`npm run vsix:local`**: Local debugging package workflow; runs compile then creates a VSIX (`npx vsce package`) for local install/testing.
+- **`publish-app.bat`**: Publish helper script that reads the latest version from the top `CHANGELOG.md` heading (`## x.y.z`), syncs `package.json` version to match, then publishes to VS Code Marketplace and Open VSX without auto-increment.
 
 ## 2. Core Workflows
 
@@ -89,7 +91,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Actions:**
     - **Jump:** `handleJumpToImage()` — reveal the image line in the editor.
     - **Export:** Opens `getExportImagePanelHtml()` panel — save to file via `handleSaveImage()` or copy raw base64.
-    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock. **Delete image** (red text) clears the data URI at the scan range (empty string) via `applyReplaceImage(range, '')`. Normal replace uses `applyReplaceImage(range, dataUri)`.
+    - **Replace:** Opens `getReplaceImagePanelHtml()` panel — upload file or paste base64; supports width × height resize with aspect-ratio lock and an **Opacity (%)** input. The dialog displays the target source **Line** for the currently selected image range. While editing, preview shows a **temporary live image update** (including width/height/opacity changes) without writing to disk. **Cancel** (or closing the panel) resets preview back to the old image. **Replace** commits the selected/resized/opacity-adjusted image via `applyReplaceImage(range, dataUri)`. **Delete image** (red text) clears the data URI at the scan range (empty string) via `applyReplaceImage(range, '')`.
 
 ### 6. Dependency Setup Check (First-Run)
 - **Trigger:** Called immediately in `activate()` via `checkDependencies()` from `setup.ts`.
@@ -105,7 +107,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 
 ### 7. XML/XSLT Formatter
 - **Provider:** Registered for `xml` and `xsl` languages via `vscode.languages.registerDocumentFormattingEditProvider`.
-- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically while preserving all text content exactly (no changes to whitespace inside text nodes).
+- **Implementation:** `formatXml()` in `formatter.ts` — tokenizer-based formatter that indents child tags vertically, keeps opening tags on one line (attributes are whitespace-normalized outside quotes), normalizes XML comments to compact one-line `<!-- ... -->` form, and normalizes text-node **ASCII whitespace only** (`\t`, `\n`, `\r`, space) into single spaces to avoid unintended word/line splits in literal text output. Non-ASCII/invisible spacing characters (for example `U+00A0`) are preserved. Probable encoded payload-like text blobs are left untouched.
 - **Config:** Indent size from `xslt-viewer.formatIndentSize` setting.
 
 ### 7. PDF Export
@@ -119,7 +121,7 @@ The extension attempts to intelligently pair XML and XSLT files:
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
 - **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
-- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear).
+- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear), `previewReplaceImage` (temporary live image swap), `previewResetImage` (restore original preview HTML).
 - **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`. Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
 
 ## 4. Comparison with Web App (`ref/`)
@@ -135,5 +137,11 @@ This project is a port of the "XSLT Viewer Cloud" (Web App).
 2. **Python Logic:** If `transform.py` logic (e.g., arguments or return format) changes.
 3. **Webview Features:** If new interaction modes are added to the Preview or Sidebar webviews.
 4. **New Modules:** If new `.ts` files are added under `src/`.
+
+### Agent Hotfix & Release Workflow
+- For user-requested **minor bugfixes** in AI Agent mode, the expected operational flow is:
+    1) detect/reproduce, 2) implement smallest safe fix, 3) validate, 4) bump `CHANGELOG.md` patch version (`x.y.z -> x.y.(z+1)`), 5) commit + push, 6) run `publish-app.bat`.
+- For **bigger updates** (new features, behavior redesign, settings/commands changes, broad refactors, or higher risk), the agent must ask for confirmation before push/publish.
+- If validation or publish fails, stop and report status instead of continuing release steps.
 
 **Cursor instructions:** Project rules live in `.cursor/rules/`. When adding or changing features or functions, **also update** the relevant `.mdc` rules and this file. See the rule `self-update-instructions.mdc` for the required self-update protocol.

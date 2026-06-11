@@ -8,7 +8,7 @@
   },
   "description": "Live XSLT preview, formatter, and image manager",
   "icon": "icon.png",
-  "version": "2.2.7",
+  "version": "2.2.25",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -138,6 +138,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "vsix:local": "npm run compile && npx vsce package",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"

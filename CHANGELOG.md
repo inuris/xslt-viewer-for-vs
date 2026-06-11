@@ -2,10 +2,105 @@
 
 All notable changes to this extension will be documented in this file.
 
-## 2.2.7
+## 2.2.25
 
 ### Changed
-- **Snippets**: Updated built-in XSLT snippets content.
+- **Snippets**: Updated "Update STT by TChat" snippet to hide STT for `TChat = 4` and support `Remark` display fallback.
+
+## 2.2.24
+
+### Changed
+- **Snippets**: Updated "Convert Number to Vietnamese Words" snippet to support negative values.
+
+## 2.2.23
+
+### Fixed
+- **Snippets**: Fixed missing closing `</xsl:choose>` tag in "Add Signature Block" snippet.
+
+## 2.2.22
+
+### Changed
+- **Snippets**: Updated "Convert Number to Vietnamese Words" snippet with improved formatting and added call example.
+
+## 2.2.21
+
+### Changed
+- **Snippets**: Renamed "Number to Vietnamese" snippet label to "Convert Number to Vietnamese Words" for clarity.
+
+## 2.2.20
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.19
+
+### Fixed
+- **Formatter**: Restrict whitespace trimming/collapsing to ASCII whitespace only, preserving non-ASCII invisible spaces used in source files.
+
+## 2.2.18
+
+### Fixed
+- **Formatter**: Keep opening-tag attributes on one line and compact XML comments by trimming line breaks/multi-space into single-line `<!-- ... -->` output.
+
+## 2.2.17
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.16
+
+### Fixed
+- **Formatter**: Normalize text-node line breaks/tabs to single spaces so literal text in XSLT does not get split into unintended wrapped lines after formatting.
+
+## 2.2.15
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.14
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.13
+
+### Changed
+- **Replace image**: Added a target line indicator in the Replace dialog to show which embedded image is currently being edited.
+
+## 2.2.12
+
+### Changed
+- **Replace image**: Added an Opacity (%) control (default 100) to live preview and apply opacity-adjusted base64 output on Replace.
+
+## 2.2.11
+
+### Changed
+- **Replace image**: Added live temporary preview while picking/resizing a replacement image; Cancel (or close) restores the old preview image, and Replace commits the change.
+
+## 2.2.10
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.9
+
+### Fixed
+- Minor bugs fixed.
+
+## 2.2.8
+
+### Fixed
+- **Search result reveal**: Prevent losing focus to Search results when "Reveal in Explorer" is used; extension no longer steals focus from other views.
+
+## 2.2.7
+
+### Fixed
+- **Replace image**: Skip old-image size suggestion when the existing image is 1×1 (placeholder); the new image's natural size is suggested instead.
+
+## 2.2.6
+
+### Added
+- **Snippets**: Add more snippets
 
 ## 2.2.5
 
