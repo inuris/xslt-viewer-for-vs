@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.7
+
+### Changed
+- **Snippets**: Updated built-in XSLT snippets content.
+
 ## 2.2.5
 
 ### Added

@@ -63,19 +63,26 @@ Add XML condition to hide STT when TChat = 4 (Ghi chu)
 
 ```xml
 <xsl:choose>
-    <xsl:when test="TChat = 1">
-        <xsl:number level="any" count="HHDVu[TChat=1]" format="1"/>
+    <xsl:when test="TChat != 4">
+        <xsl:choose>
+            <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu = '.'">&#160;</xsl:when>
+            <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu != ''">
+                <xsl:value-of select="TTKhac/TTin[TTruong='Remark']/DLieu" />
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:variable name="stt">
+                    <xsl:number level="any" count="HHDVu[TChat!=4][ThTien!=0]" format="1"/>
+                </xsl:variable>
+                <xsl:choose>
+                    <xsl:when test="$stt = 0 or $stt = ''">&#160;</xsl:when>
+                    <xsl:otherwise>
+                        <xsl:value-of select="$stt" />
+                    </xsl:otherwise>
+                </xsl:choose>
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:when>
-    <xsl:when test="TChat = 4">&#160;</xsl:when>
-    <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu = '.'">
-        &#160;
-    </xsl:when>
-    <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu != ''">
-        <xsl:value-of select="TTKhac/TTin[TTruong='Remark']/DLieu" />
-    </xsl:when>
-    <xsl:otherwise>
-        <xsl:value-of select="STT" />
-    </xsl:otherwise>
+    <xsl:otherwise>&#160;</xsl:otherwise>
 </xsl:choose>
 ```
 
