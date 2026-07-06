@@ -560,6 +560,22 @@ Add XML tag: Buyer phone (`NMua/SDThoai`)
 
 ---
 
+## Auto font-size when large string
+Change font-size of 'Ten san pham' when string length > 120 and > 200
+
+```xml
+<xsl:attribute name="style">
+    <xsl:choose>
+        <xsl:when test="string-length(THHDVu) &gt; 200">font-size: 13px; line-height: 1.2;</xsl:when>
+        <xsl:when test="string-length(THHDVu) &gt; 120">font-size: 14px; line-height: 1.2;</xsl:when>
+        <xsl:otherwise>font-size: 15px; line-height: 1.3;</xsl:otherwise>
+    </xsl:choose>
+</xsl:attribute>
+<xsl:value-of select="THHDVu" />
+```
+
+---
+
 ## Convert Number to Vietnamese Words
 Convert a number into a Vietnamese text string (Đọc số tiền bằng tiếng Việt)
 
