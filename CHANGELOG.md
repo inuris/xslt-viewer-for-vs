@@ -10,7 +10,7 @@ All notable changes to this extension will be documented in this file.
 ## 2.2.27
 
 ### Changed
-- Maintenance release.
+- **Snippets**: Updated built-in XSLT snippets.
 
 ## 2.2.26
 
