@@ -2,6 +2,16 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.28
+
+### Added
+- **Replace Image**: Hue / Saturation / Brightness sliders (Photoshop-style ranges) with live preview and baked-in Replace output.
+
+## 2.2.27
+
+### Changed
+- Maintenance release.
+
 ## 2.2.26
 
 ### Changed

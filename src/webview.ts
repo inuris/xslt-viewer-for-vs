@@ -314,7 +314,7 @@ export function getWebviewShell(initialZoom: number = 100): string {
 }
 
 /**
- * HTML for the Replace Image dialog (Upload / Paste Base64 + Width x Height + Maintain ratio).
+ * HTML for the Replace Image dialog (Upload / Paste Base64 + Width x Height + Opacity + Hue/Saturation/Brightness).
  * @param nonce Optional value to force webview reload when opening for a different image (e.g. Date.now()).
  */
 export function getReplaceImagePanelHtml(nonce?: number): string {
@@ -331,6 +331,10 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         label { min-width: 90px; }
         input[type="number"] { width: 80px; padding: 4px 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; }
         input[type="checkbox"] { margin-right: 6px; }
+        input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--vscode-button-background); }
+        .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .slider-row label { min-width: 90px; }
+        .slider-val { width: 42px; text-align: right; font-variant-numeric: tabular-nums; color: var(--vscode-descriptionForeground); }
         textarea { width: 100%; min-height: 80px; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; box-sizing: border-box; font-family: inherit; resize: vertical; }
         .btn { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
         .btn-primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
@@ -373,6 +377,22 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             <input type="checkbox" id="maintain-ratio" checked />
             <label for="maintain-ratio">Maintain aspect ratio</label>
         </div>
+        <div class="section-title" style="margin-top:12px">Hue / Saturation / Brightness</div>
+        <div class="slider-row">
+            <label for="hue-slider">Hue</label>
+            <input type="range" id="hue-slider" min="-180" max="180" value="0" />
+            <span class="slider-val" id="hue-val">0</span>
+        </div>
+        <div class="slider-row">
+            <label for="sat-slider">Saturation</label>
+            <input type="range" id="sat-slider" min="-100" max="100" value="0" />
+            <span class="slider-val" id="sat-val">0</span>
+        </div>
+        <div class="slider-row">
+            <label for="bri-slider">Brightness</label>
+            <input type="range" id="bri-slider" min="-100" max="100" value="0" />
+            <span class="slider-val" id="bri-val">0</span>
+        </div>
         <div class="dims-info" id="dims-info">Original: — | New: —</div>
     </div>
     <div class="actions">
@@ -408,6 +428,80 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
         }
 
+        function clamp(n, min, max) {
+            return Math.max(min, Math.min(max, n));
+        }
+
+        function getSliderValue(id, min, max, fallback) {
+            const n = parseInt(document.getElementById(id).value, 10);
+            return Number.isFinite(n) ? clamp(n, min, max) : fallback;
+        }
+
+        function getAdjustments() {
+            return {
+                hue: getSliderValue('hue-slider', -180, 180, 0),
+                sat: getSliderValue('sat-slider', -100, 100, 0),
+                bri: getSliderValue('bri-slider', -100, 100, 0),
+            };
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h = 0;
+            let s = 0;
+            const l = (max + min) / 2;
+            if (max !== min) {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                else if (max === g) h = ((b - r) / d + 2) / 6;
+                else h = ((r - g) / d + 4) / 6;
+            }
+            return [h, s, l];
+        }
+
+        function hue2rgb(p, q, t) {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        }
+
+        function hslToRgb(h, s, l) {
+            let r, g, b;
+            if (s === 0) {
+                r = g = b = l;
+            } else {
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1 / 3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1 / 3);
+            }
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+
+        function applyHsbToImageData(imageData, hue, sat, bri) {
+            if (hue === 0 && sat === 0 && bri === 0) return;
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] === 0) continue;
+                let hsl = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+                let h = hsl[0] + (hue / 360);
+                h = h - Math.floor(h);
+                let s = clamp(hsl[1] + (sat / 100), 0, 1);
+                let l = clamp(hsl[2] + (bri / 100), 0, 1);
+                const rgb = hslToRgb(h, s, l);
+                data[i] = rgb[0];
+                data[i + 1] = rgb[1];
+                data[i + 2] = rgb[2];
+            }
+        }
+
         function buildPreviewDataUri(onDone) {
             if (!state.newDataUri) return;
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
@@ -415,13 +509,12 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
             const opacityPct = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
             const opacity = opacityPct / 100;
-            if (
-                state.originalImageW > 0 &&
-                state.originalImageH > 0 &&
-                w > 0 &&
-                h > 0 &&
-                (w !== state.originalImageW || h !== state.originalImageH || opacityPct !== 100)
-            ) {
+            const adj = getAdjustments();
+            const needsProcess =
+                (state.originalImageW > 0 && state.originalImageH > 0 && w > 0 && h > 0 &&
+                    (w !== state.originalImageW || h !== state.originalImageH || opacityPct !== 100 ||
+                     adj.hue !== 0 || adj.sat !== 0 || adj.bri !== 0));
+            if (needsProcess) {
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
                 canvas.height = h;
@@ -429,8 +522,27 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 const img = new Image();
                 img.onload = function() {
                     if (!ctx) return;
-                    ctx.globalAlpha = opacity;
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.globalAlpha = 1;
                     ctx.drawImage(img, 0, 0, w, h);
+                    if (adj.hue !== 0 || adj.sat !== 0 || adj.bri !== 0) {
+                        const imageData = ctx.getImageData(0, 0, w, h);
+                        applyHsbToImageData(imageData, adj.hue, adj.sat, adj.bri);
+                        ctx.putImageData(imageData, 0, 0);
+                    }
+                    if (opacityPct !== 100) {
+                        const tmp = document.createElement('canvas');
+                        tmp.width = w;
+                        tmp.height = h;
+                        const tctx = tmp.getContext('2d');
+                        if (tctx) {
+                            tctx.clearRect(0, 0, w, h);
+                            tctx.globalAlpha = opacity;
+                            tctx.drawImage(canvas, 0, 0);
+                            onDone(tmp.toDataURL('image/png'));
+                            return;
+                        }
+                    }
                     onDone(canvas.toDataURL('image/png'));
                 };
                 img.src = state.newDataUri;
@@ -509,8 +621,15 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
             const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
             const opacity = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
+            const adj = getAdjustments();
+            document.getElementById('hue-val').textContent = String(adj.hue);
+            document.getElementById('sat-val').textContent = String(adj.sat);
+            document.getElementById('bri-val').textContent = String(adj.bri);
             const origStr = (state.origW && state.origH) ? (state.origW + '×' + state.origH) : '—';
-            document.getElementById('dims-info').textContent = 'Original: ' + origStr + ' | New: ' + w + '×' + h + ' | Opacity: ' + opacity + '%';
+            document.getElementById('dims-info').textContent =
+                'Original: ' + origStr + ' | New: ' + w + '×' + h +
+                ' | Opacity: ' + opacity + '%' +
+                ' | H:' + adj.hue + ' S:' + adj.sat + ' B:' + adj.bri;
         }
 
         function updateHeightFromWidth() {
@@ -560,6 +679,13 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             updateDimsInfo();
             scheduleLivePreview();
         };
+        function onHsbSliderInput() {
+            updateDimsInfo();
+            scheduleLivePreview();
+        }
+        document.getElementById('hue-slider').oninput = onHsbSliderInput;
+        document.getElementById('sat-slider').oninput = onHsbSliderInput;
+        document.getElementById('bri-slider').oninput = onHsbSliderInput;
         document.getElementById('maintain-ratio').onchange = function() {
             if (this.checked) {
                 // When turning ratio back on, snap the other dimension to match the current one.
