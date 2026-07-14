@@ -23,8 +23,8 @@ This document summarizes the formatter’s content-whitespace rules and how they
 | **Whitespace set** | Only these four: `\t` `\n` `\r` and space (and form feed/vertical tab for robustness). | Matches XML’s four; we treat only these as “whitespace” for trim/collapse. |
 | **&#160; (U+00A0)** | Never trimmed or collapsed; preserved. | Matches XML (not whitespace). |
 | **Other non-ASCII invisible spaces** | Preserved (not trimmed/collapsed by formatter). | Formatter only normalizes ASCII whitespace to avoid accidental semantic changes. |
-| **Newline in content** | Replaced with a single space. | Matches normalization (LF/CR → space). |
-| **Tab in content** | **Replace with space** (spec‑aligned). Alternative: *remove* (previous behavior). | XML/XPath normalize to space; “remove” is non‑standard. |
+| **Newline / tab in content** | Collapsed to a single space (runs of ASCII whitespace → one space). | Matches normalize-space() for *internal* runs. |
+| **Leading / trailing space in text nodes** | Keep **one** leading and/or trailing space if the original had ASCII whitespace at that edge. | Needed for mixed content like `<i>(VAT rate) </i>0%`. Full trim would remove the only gap before `0%`. |
 | **Whitespace‑only text between tags** | Collapsed to a single space + newline (to avoid many blank lines). | Common for pretty‑printers; preserves one space between inline elements. |
 | **Inside tags** | Newlines in tag source collapsed to one space; quoted attribute values unchanged; &#160; preserved. | Aligns with “one line per tag” and safe attribute handling. |
 | **Opening-tag attributes** | Attributes are emitted on the same line as the opening tag (outside-quote whitespace collapsed). | Matches compact XML formatter expectation for readable one-line tag headers. |
@@ -34,7 +34,8 @@ This document summarizes the formatter’s content-whitespace rules and how they
 
 ## Conflict and choice
 
-- **Tab in content**: The XML/XPath rule is to **replace** tab with space (like `normalize-space()`). The formatter was previously **removing** tabs. Replacing with space is the default now for general compatibility; if you prefer **removing** tabs in content, that can be restored.
+- **Tab in content**: The XML/XPath rule is to **replace** tab with space (like `normalize-space()`). The formatter was previously **removing** tabs. Replacing with space is the default now for general compatibility.
+- **Edge spaces vs normalize-space()**: XPath `normalize-space()` strips leading/trailing whitespace. For this product we intentionally **do not** fully strip edge spaces in text inside (or as) element content, because in HTML/XSLT they often separate adjacent text (`</i>0%` vs `</i> 0%` / `<i>… </i>0%`). We only collapse runs and keep at most one edge space per side.
 
 ## References
 

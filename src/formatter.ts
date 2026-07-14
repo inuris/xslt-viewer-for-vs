@@ -402,14 +402,28 @@ function tryFormatWholeStyleBlockText(text: string, indentSize: number, depth: n
     ].filter(Boolean).join('\n');
 }
 
+/**
+ * Collapse ASCII whitespace runs to a single space for inline/text content.
+ * Preserve one leading and/or trailing space when the original text had them —
+ * those edge spaces often separate words across tags (e.g. `<i>(VAT rate) </i>0%`).
+ * Fully trimming would match XPath normalize-space() but breaks mixed HTML/XSLT content.
+ */
 function collapseTextToLine(text: string): string {
     // Guardrail: keep probable encoded payloads untouched.
     const compact = text.replace(ASCII_WS_GLOBAL, '');
     const looksEncoded = compact.length > 160 && /^[A-Za-z0-9+/=]+$/.test(compact);
     if (looksEncoded) return text;
 
-    // XML/XPath-style normalization for text nodes: collapse ASCII whitespace to one space.
-    return trimAscii(text.replace(ASCII_WS_GLOBAL, ' '));
+    const hadLeading = text.length > 0 && ASCII_WS.test(text[0]);
+    const hadTrailing = text.length > 0 && ASCII_WS.test(text[text.length - 1]);
+    let s = trimAscii(text.replace(ASCII_WS_GLOBAL, ' '));
+    if (s.length === 0) {
+        // Text was only ASCII whitespace — keep a single space when any edge space existed.
+        return hadLeading || hadTrailing ? ' ' : '';
+    }
+    if (hadLeading) s = ' ' + s;
+    if (hadTrailing) s = s + ' ';
+    return s;
 }
 
 function formatWithIndent(tokens: Token[], indentSize: number): string {

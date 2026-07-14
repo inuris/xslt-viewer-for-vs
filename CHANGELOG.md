@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.30
+
+### Fixed
+- **Formatter**: Preserve one leading/trailing space in inline text nodes (e.g. `<i>(VAT rate) </i>0%`) so mixed HTML/XSLT content does not lose intentional word spacing.
+
 ## 2.2.29
 
 ### Changed
