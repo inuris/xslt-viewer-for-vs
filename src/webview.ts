@@ -314,7 +314,8 @@ export function getWebviewShell(initialZoom: number = 100): string {
 }
 
 /**
- * HTML for the Replace Image dialog (Upload / Paste Base64 + Width x Height + Opacity + Hue/Saturation/Brightness).
+ * HTML for the Replace Image dialog (Upload / Paste Base64 + Resize, Opacity slider, Hue/Saturation/Brightness).
+ * Controls edit the original image when no upload/paste is provided; otherwise they apply to the new image.
  * @param nonce Optional value to force webview reload when opening for a different image (e.g. Date.now()).
  */
 export function getReplaceImagePanelHtml(nonce?: number): string {
@@ -363,19 +364,22 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         </div>
     </div>
     <div id="dims-section" class="section hidden">
-        <div class="section-title">Resize (optional)</div>
+        <div class="section-title">Resize</div>
         <div class="row">
             <label for="width-px">Width (px):</label>
             <input type="number" id="width-px" min="1" />
             <span>×</span>
             <label for="height-px">Height (px):</label>
             <input type="number" id="height-px" min="1" />
-            <label for="opacity-pct">Opacity (%):</label>
-            <input type="number" id="opacity-pct" min="0" max="100" value="100" />
         </div>
         <div class="row">
             <input type="checkbox" id="maintain-ratio" checked />
             <label for="maintain-ratio">Maintain aspect ratio</label>
+        </div>
+        <div class="slider-row">
+            <label for="opacity-slider">Opacity</label>
+            <input type="range" id="opacity-slider" min="0" max="100" value="100" />
+            <span class="slider-val" id="opacity-val">100</span>
         </div>
         <div class="section-title" style="margin-top:12px">Hue / Saturation / Brightness</div>
         <div class="slider-row">
@@ -445,6 +449,11 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             };
         }
 
+        /** Active image to edit: uploaded/pasted if present, otherwise the original. */
+        function getActiveSourceUri() {
+            return state.newDataUri || state.currentDataUri;
+        }
+
         function rgbToHsl(r, g, b) {
             r /= 255; g /= 255; b /= 255;
             const max = Math.max(r, g, b);
@@ -503,11 +512,11 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         }
 
         function buildPreviewDataUri(onDone) {
-            if (!state.newDataUri) return;
+            const sourceUri = getActiveSourceUri();
+            if (!sourceUri) return;
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
-            const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
-            const opacityPct = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
+            const opacityPct = getSliderValue('opacity-slider', 0, 100, 100);
             const opacity = opacityPct / 100;
             const adj = getAdjustments();
             const needsProcess =
@@ -545,14 +554,14 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                     }
                     onDone(canvas.toDataURL('image/png'));
                 };
-                img.src = state.newDataUri;
+                img.src = sourceUri;
                 return;
             }
-            onDone(state.newDataUri);
+            onDone(sourceUri);
         }
 
         function scheduleLivePreview() {
-            if (!state.currentDataUri || !state.newDataUri) return;
+            if (!state.currentDataUri || !getActiveSourceUri()) return;
             if (livePreviewTimer) {
                 clearTimeout(livePreviewTimer);
             }
@@ -568,11 +577,18 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         }
 
         // Load the original image that currently exists in the document.
+        // Enables Resize / Opacity / HSB as an edit of the original (no upload required).
         function loadOldImageAndFillDims(dataUri) {
             const img = new Image();
             img.onload = function() {
                 state.origW = img.naturalWidth;
                 state.origH = img.naturalHeight;
+                // Until a new image is uploaded/pasted, edits apply to the original source.
+                if (!state.newDataUri) {
+                    state.originalImageW = state.origW;
+                    state.originalImageH = state.origH;
+                    state.ratio = state.origH ? (state.origW / state.origH) : 1;
+                }
                 document.getElementById('dims-section').classList.remove('hidden');
                 document.getElementById('width-px').value = state.origW;
                 document.getElementById('height-px').value = state.origH;
@@ -619,15 +635,16 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         function updateDimsInfo() {
             const w = parseInt(document.getElementById('width-px').value, 10) || 0;
             const h = parseInt(document.getElementById('height-px').value, 10) || 0;
-            const opacityInput = parseInt(document.getElementById('opacity-pct').value, 10);
-            const opacity = Number.isFinite(opacityInput) ? Math.max(0, Math.min(100, opacityInput)) : 100;
+            const opacity = getSliderValue('opacity-slider', 0, 100, 100);
             const adj = getAdjustments();
+            document.getElementById('opacity-val').textContent = String(opacity);
             document.getElementById('hue-val').textContent = String(adj.hue);
             document.getElementById('sat-val').textContent = String(adj.sat);
             document.getElementById('bri-val').textContent = String(adj.bri);
             const origStr = (state.origW && state.origH) ? (state.origW + '×' + state.origH) : '—';
+            const srcLabel = state.newDataUri ? 'New' : 'Edit';
             document.getElementById('dims-info').textContent =
-                'Original: ' + origStr + ' | New: ' + w + '×' + h +
+                'Original: ' + origStr + ' | ' + srcLabel + ': ' + w + '×' + h +
                 ' | Opacity: ' + opacity + '%' +
                 ' | H:' + adj.hue + ' S:' + adj.sat + ' B:' + adj.bri;
         }
@@ -669,23 +686,14 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             updateDimsInfo();
             scheduleLivePreview();
         };
-        document.getElementById('opacity-pct').oninput = function() {
-            const n = parseInt(this.value, 10);
-            if (!Number.isFinite(n)) {
-                this.value = '100';
-            } else {
-                this.value = String(Math.max(0, Math.min(100, n)));
-            }
-            updateDimsInfo();
-            scheduleLivePreview();
-        };
-        function onHsbSliderInput() {
+        function onAdjustSliderInput() {
             updateDimsInfo();
             scheduleLivePreview();
         }
-        document.getElementById('hue-slider').oninput = onHsbSliderInput;
-        document.getElementById('sat-slider').oninput = onHsbSliderInput;
-        document.getElementById('bri-slider').oninput = onHsbSliderInput;
+        document.getElementById('opacity-slider').oninput = onAdjustSliderInput;
+        document.getElementById('hue-slider').oninput = onAdjustSliderInput;
+        document.getElementById('sat-slider').oninput = onAdjustSliderInput;
+        document.getElementById('bri-slider').oninput = onAdjustSliderInput;
         document.getElementById('maintain-ratio').onchange = function() {
             if (this.checked) {
                 // When turning ratio back on, snap the other dimension to match the current one.
@@ -712,7 +720,7 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         };
 
         document.getElementById('btn-insert').onclick = function() {
-            if (!state.range || !state.newDataUri) return;
+            if (!state.range || !getActiveSourceUri()) return;
             buildPreviewDataUri(function(dataUri) {
                 vscode.postMessage({ command: 'replaceImageApply', dataUri: dataUri, range: state.range });
             });

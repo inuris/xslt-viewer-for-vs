@@ -2,6 +2,12 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.29
+
+### Changed
+- **Replace Image**: Rename section to **Resize**; Opacity is now a 0–100% slider on its own row.
+- **Replace Image**: Resize / Opacity / Hue / Saturation / Brightness edit the **original** image when nothing is uploaded or pasted; once a new image is provided, the same controls apply to that image.
+
 ## 2.2.28
 
 ### Added
