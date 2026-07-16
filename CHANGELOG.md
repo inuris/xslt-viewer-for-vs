@@ -2,6 +2,12 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.31
+
+### Fixed
+- **Preview**: Fixed a bug where the click-to-jump line instrumentation could corrupt XML comments containing a `<word` sequence (e.g. `<!-- ... <myVar ... -->`), silently breaking the XSLT's element nesting and causing misleading errors like "element template only allowed as child of stylesheet". Instrumentation now skips comments/CDATA sections entirely.
+- **Transformation errors**: Python transform script now reports precise line/column diagnostics for XML/XSLT syntax and compile errors instead of a bare libxslt message.
+
 ## 2.2.30
 
 ### Fixed

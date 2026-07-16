@@ -36,19 +36,46 @@ export function runPythonTransformation(
 
 /**
  * Inject data-source-line attributes into output elements for click-to-jump.
+ *
+ * IMPORTANT: this scans the whole document (not line-by-line) and explicitly
+ * skips over XML comments (<!-- ... -->) and CDATA sections (<![CDATA[ ... ]]>).
+ * A naive per-line tag regex will happily "match" text inside a comment that
+ * merely looks like a tag start (e.g. a comment containing `<someVarName`),
+ * corrupting the comment's `-->` terminator and silently shifting the whole
+ * document's element nesting. That previously caused libxslt errors such as
+ * "element template only allowed as child of stylesheet" even though the
+ * original XSLT file was perfectly valid.
  */
 export function instrumentXslt(xsltContent: string): string {
-    const lines = xsltContent.split('\n');
-    return lines
-        .map((line, index) => {
-            const lineNum = index + 1;
-            return line.replace(
-                /<(?!(?:\/|xsl:|[\?!]))([a-zA-Z0-9_:-]+)([^>]*)>/g,
-                (match, tagName, attributes) => {
-                    if (attributes.includes('data-source-line')) return match;
-                    return `<${tagName} data-source-line="${lineNum}"${attributes}>`;
-                }
-            );
-        })
-        .join('\n');
+    const pattern = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<((?!\/|xsl:|[?!])[a-zA-Z0-9_:-]+)([^>]*)>/g;
+    let result = '';
+    let lastIndex = 0;
+    let line = 1;
+    let match: RegExpExecArray | null;
+
+    while ((match = pattern.exec(xsltContent)) !== null) {
+        const [full, tagName, attributes] = match;
+
+        // Count newlines between the previous match and this one to keep the line counter accurate.
+        for (let i = lastIndex; i < match.index; i++) {
+            if (xsltContent.charCodeAt(i) === 10) line++;
+        }
+        result += xsltContent.slice(lastIndex, match.index);
+
+        if (tagName === undefined || attributes.includes('data-source-line')) {
+            // Comment / CDATA section, or a tag that's already instrumented: leave untouched.
+            result += full;
+        } else {
+            result += `<${tagName} data-source-line="${line}"${attributes}>`;
+        }
+
+        // Account for newlines inside the matched text itself before continuing.
+        for (let i = match.index; i < pattern.lastIndex; i++) {
+            if (xsltContent.charCodeAt(i) === 10) line++;
+        }
+        lastIndex = pattern.lastIndex;
+    }
+
+    result += xsltContent.slice(lastIndex);
+    return result;
 }

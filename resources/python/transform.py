@@ -9,6 +9,33 @@ except ImportError:
     sys.stderr.write("Please run: pip install lxml (or configure 'xslt-viewer.pythonPath' in VS Code settings)\n")
     sys.exit(1)
 
+def _format_error_log(title, error_log):
+    """Format an lxml error log into a multi-line message with line/column info."""
+    lines = [title + ":"]
+    for entry in error_log:
+        loc = f"line {entry.line}"
+        if entry.column:
+            loc += f", column {entry.column}"
+        lines.append(f"  [{loc}] {entry.message}")
+    return "\n".join(lines)
+
+
+def _parse_xml_with_diagnostics(content_bytes):
+    """Parse XML strictly first (to get precise syntax-error diagnostics with line
+    numbers), then fall back to a recovering parser so minor real-world XML quirks
+    don't block the transformation. Returns (doc, strict_syntax_errors_or_None)."""
+    try:
+        strict_parser = etree.XMLParser(recover=False)
+        doc = etree.fromstring(content_bytes, parser=strict_parser)
+        return doc, None
+    except etree.XMLSyntaxError as e:
+        strict_errors = list(e.error_log)
+
+    recover_parser = etree.XMLParser(recover=True)
+    doc = etree.fromstring(content_bytes, parser=recover_parser)
+    return doc, strict_errors
+
+
 def transform():
     try:
         # Increase robustness for Windows pipes
@@ -31,17 +58,33 @@ def transform():
         if "urn:schemas-microsoft-com:xslt" in xslt_content:
             xslt_content = xslt_content.replace("urn:schemas-microsoft-com:xslt", "http://exslt.org/common")
 
-        # Parse XML
-        parser = etree.XMLParser(recover=True)
-        xml_doc = etree.fromstring(xml_content.encode('utf-8'), parser=parser)
+        # Parse XML data (source document). Real-world XML data can be messy, so we
+        # recover when possible, but still surface strict-parse diagnostics if useful.
+        xml_doc, _xml_syntax_errors = _parse_xml_with_diagnostics(xml_content.encode('utf-8'))
 
-        # Parse XSLT
-        xslt_doc = etree.fromstring(xslt_content.encode('utf-8'), parser=parser)
-        transform = etree.XSLT(xslt_doc)
+        # Parse XSLT. Keep track of any strict-parse syntax errors (e.g. malformed
+        # comments/tags) even if a recovering parse succeeds, so that if XSLT
+        # compilation later fails with a vague libxslt message, we can point at the
+        # real underlying line/column.
+        xslt_doc, xslt_syntax_errors = _parse_xml_with_diagnostics(xslt_content.encode('utf-8'))
+
+        try:
+            transform = etree.XSLT(xslt_doc)
+        except etree.XSLTParseError as e:
+            msg = _format_error_log("XSLT compile error", e.error_log) if e.error_log else f"XSLT compile error: {e}"
+            if xslt_syntax_errors:
+                msg += "\n\n" + _format_error_log(
+                    "Likely root cause - the XSLT file has malformed XML at", xslt_syntax_errors
+                )
+            raise RuntimeError(msg)
 
         # Transform
-        result_tree = transform(xml_doc)
-        
+        try:
+            result_tree = transform(xml_doc)
+        except etree.XSLTApplyError as e:
+            msg = _format_error_log("XSLT transform error", transform.error_log) if transform.error_log else f"XSLT transform error: {e}"
+            raise RuntimeError(msg)
+
         # Output Binary
         # Use stdout.buffer to write raw bytes directly to the pipe.
         # This avoids UnicodeEncodeErrors when Python tries to encode the output as text.

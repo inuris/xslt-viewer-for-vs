@@ -56,13 +56,14 @@
 
 ### 1. Rendering Pipeline (IPC)
 1. **Trigger:** `runUpdate()` calls `runPythonTransformation()`.
-2. **Instrumentation:** XSLT source is passed through `instrumentXslt()` (in TS) to add `data-source-line` attributes.
+2. **Instrumentation:** XSLT source is passed through `instrumentXslt()` (in TS) to add `data-source-line` attributes. This is a whole-document scan (not line-by-line) that explicitly skips `<!-- comments -->` and `<![CDATA[ ]]>` sections — a comment containing a `<word`-like sequence must never be treated as a tag, or it corrupts the comment terminator and cascades into confusing libxslt structural errors (e.g. "element X only allowed as child of stylesheet").
 3. **Execution:**
    - Spawns a child process: `[pythonPath] resources/python/transform.py`.
    - Sends JSON payload via `stdin`.
 4. **Output:**
    - Receives HTML via `stdout`.
    - Wraps HTML with `wrapForIframe()` (injects click-to-jump + hover tooltip scripts).
+   - On error, `transform.py` parses XML/XSLT strictly first to capture precise line/column syntax diagnostics, then falls back to a recovering parser; if XSLT compilation or application then fails, the strict-parse diagnostics are appended to the raised error so line numbers are visible in the "Transformation Error" panel.
    - Posts `{ command: 'update', html, images, relativePath, switchButtonLabel }` to the webview.
    - If error (stderr), displays an error message in the Webview.
 
