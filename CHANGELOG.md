@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.32
+
+### Added
+- **Snippets**: Added "Convert Number to Vietnamese Words" snippet (reads a number as Vietnamese currency text, e.g. `numberToVietnamese`).
+
 ## 2.2.31
 
 ### Fixed
