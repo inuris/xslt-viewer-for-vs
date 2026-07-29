@@ -829,8 +829,10 @@ export function wrapForIframe(content: string): string {
             hlStyle.textContent = '.xslt-preview-line-highlight{outline:3px solid #AB47BC!important;box-shadow:0 0 0 2px rgba(171,71,188,0.45);z-index:2;position:relative;}' +
                 '.xslt-edit-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:3px;border:1px solid rgba(255,255,255,0.35);background:#AB47BC;color:#fff;font:600 11px sans-serif;cursor:pointer;padding:0;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);}' +
                 '.xslt-edit-icon-btn:hover{background:#8e35a0;}' +
-                '#xslt-edit-input-box{position:fixed;z-index:100000;display:none;align-items:center;}' +
-                '#xslt-edit-input-box input{width:76px;font-size:12px;padding:2px 6px;border-radius:3px;border:1px solid #AB47BC;outline:none;}';
+                '#xslt-edit-input-box{position:fixed;z-index:100000;display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.85);border:1px solid #AB47BC;border-radius:4px;padding:5px 10px;box-shadow:0 1px 4px rgba(0,0,0,0.3);font-family:sans-serif;}' +
+                '#xslt-edit-input-box input[type=range]{width:110px;accent-color:#AB47BC;}' +
+                '#xslt-edit-input-box input[type=number]{width:54px;font-size:12px;padding:2px 4px;border-radius:3px;border:1px solid #AB47BC;outline:none;background:#fff;color:#111;}' +
+                '#xslt-edit-input-box .xslt-edit-unit{font-size:11px;color:#fff;opacity:0.85;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -845,13 +847,32 @@ export function wrapForIframe(content: string): string {
 
             var editInputBox = document.createElement('div');
             editInputBox.id = 'xslt-edit-input-box';
-            var editInput = document.createElement('input');
-            editInput.type = 'text';
-            editInputBox.appendChild(editInput);
+            var editSlider = document.createElement('input');
+            editSlider.type = 'range';
+            editSlider.min = '0';
+            var editNumber = document.createElement('input');
+            editNumber.type = 'number';
+            editNumber.min = '0';
+            var editUnit = document.createElement('span');
+            editUnit.className = 'xslt-edit-unit';
+            editUnit.textContent = 'px';
+            editInputBox.appendChild(editSlider);
+            editInputBox.appendChild(editNumber);
+            editInputBox.appendChild(editUnit);
             document.body.appendChild(editInputBox);
 
-            var activeEditEl = null;
-            var activeEditLine = null;
+            var activeEditEl = null;   // the exact element the icons/edits are anchored to
+            var activeEditLine = null; // its data-source-line (maps 1:1 to the XSLT source tag)
+            var editingProp = null;    // 'width' | 'height' while the slider popup is open
+            var editOriginalValue = ''; // activeEditEl.style[prop] before this edit session, for Escape
+            var editMax = 100;
+            // A click already activates the exact clicked element synchronously (see the
+            // document click handler below). The extension still echoes back a
+            // 'highlightSourceLine' message once the editor cursor move round-trips — ignore
+            // that echo so it can't re-derive (and possibly clobber onto a parent sharing the
+            // same source line) what the click already pinned precisely.
+            var lastClickLine = null;
+            var lastClickAt = 0;
 
             function positionEditIcons() {
                 if (!activeEditEl || editIconsBox.style.display === 'none') return;
@@ -860,7 +881,10 @@ export function wrapForIframe(content: string): string {
                 editIconsBox.style.top = Math.max(2, r.top - 24) + 'px';
             }
 
-            function hideEditInput() { editInputBox.style.display = 'none'; }
+            function hideEditInput() {
+                editInputBox.style.display = 'none';
+                editingProp = null;
+            }
 
             function hideEditIcons() {
                 editIconsBox.style.display = 'none';
@@ -869,33 +893,72 @@ export function wrapForIframe(content: string): string {
                 activeEditLine = null;
             }
 
+            function parsePx(v) {
+                if (!v) return null;
+                var m = String(v).trim().match(/^(-?\d+(?:\.\d+)?)px$/);
+                return m ? parseFloat(m[1]) : null;
+            }
+
+            function applyLivePreview(px) {
+                if (!activeEditEl || !editingProp) return;
+                activeEditEl.style[editingProp] = px + 'px';
+                positionEditIcons();
+            }
+
             function showEditInput(prop, btn) {
                 if (!activeEditEl) return;
-                var current = activeEditEl.style[prop];
-                if (!current) {
+                var parent = activeEditEl.parentElement;
+                var parentRect = parent ? parent.getBoundingClientRect() : null;
+                editMax = Math.max(1, Math.round(prop === 'width'
+                    ? (parentRect ? parentRect.width : document.documentElement.clientWidth)
+                    : (parentRect ? parentRect.height : document.documentElement.clientHeight)));
+
+                var currentInline = activeEditEl.style[prop];
+                editOriginalValue = currentInline || '';
+                var currentPx = parsePx(currentInline);
+                if (currentPx == null) {
                     var r = activeEditEl.getBoundingClientRect();
-                    current = Math.round(prop === 'width' ? r.width : r.height) + 'px';
+                    currentPx = prop === 'width' ? r.width : r.height;
                 }
-                editInput.value = current;
-                editInput.dataset.prop = prop;
+                currentPx = Math.min(Math.max(0, Math.round(currentPx)), editMax);
+
+                editingProp = prop;
+                editSlider.max = String(editMax);
+                editSlider.value = String(currentPx);
+                editNumber.max = String(editMax);
+                editNumber.value = String(currentPx);
+
                 var br = btn.getBoundingClientRect();
                 editInputBox.style.left = Math.max(2, br.left) + 'px';
                 editInputBox.style.top = Math.max(2, br.bottom + 4) + 'px';
                 editInputBox.style.display = 'flex';
-                editInput.focus();
-                editInput.select();
+                editSlider.focus();
             }
 
             function commitEdit() {
-                if (!activeEditEl || activeEditLine == null) { hideEditInput(); return; }
-                var prop = editInput.dataset.prop;
-                var raw = editInput.value.trim();
+                if (!activeEditEl || activeEditLine == null || !editingProp) { hideEditInput(); return; }
+                var prop = editingProp;
+                var px = parseInt(editSlider.value, 10) || 0;
                 hideEditInput();
-                if (!raw) return;
-                var value = /^-?\d+(\.\d+)?$/.test(raw) ? (raw + 'px') : raw;
-                activeEditEl.style[prop] = value; // optimistic live preview
-                positionEditIcons();
-                window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
+                if (px <= 0) {
+                    // 0 means "remove the width/height styling" rather than pin it to 0px.
+                    activeEditEl.style.removeProperty(prop);
+                    positionEditIcons();
+                    window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: '' }, '*');
+                } else {
+                    var value = px + 'px';
+                    activeEditEl.style[prop] = value;
+                    positionEditIcons();
+                    window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
+                }
+            }
+
+            function cancelEdit() {
+                if (activeEditEl && editingProp) {
+                    if (editOriginalValue) activeEditEl.style[editingProp] = editOriginalValue;
+                    else activeEditEl.style.removeProperty(editingProp);
+                }
+                hideEditInput();
             }
 
             editIconsBox.addEventListener('click', function(e) {
@@ -905,14 +968,30 @@ export function wrapForIframe(content: string): string {
                 showEditInput(btn.getAttribute('data-prop'), btn);
             });
             editInputBox.addEventListener('click', function(e) { e.stopPropagation(); });
-            editInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') commitEdit();
-                else if (e.key === 'Escape') hideEditInput();
-                e.stopPropagation();
+            editSlider.addEventListener('input', function() {
+                editNumber.value = editSlider.value;
+                applyLivePreview(parseInt(editSlider.value, 10) || 0);
             });
-            editInput.addEventListener('blur', function() {
-                // Delay so a click on the icon box doesn't get eaten by the blur-triggered hide.
-                setTimeout(hideEditInput, 150);
+            editNumber.addEventListener('input', function() {
+                var v = Math.min(Math.max(0, parseInt(editNumber.value, 10) || 0), editMax);
+                editSlider.value = String(v);
+                applyLivePreview(v);
+            });
+            editSlider.addEventListener('change', commitEdit);
+            editNumber.addEventListener('change', commitEdit);
+            [editSlider, editNumber].forEach(function(input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') commitEdit();
+                    else if (e.key === 'Escape') cancelEdit();
+                    e.stopPropagation();
+                });
+            });
+            editInputBox.addEventListener('focusout', function() {
+                // Let focus land on the sibling control (slider <-> number) before deciding
+                // the popup truly lost focus.
+                setTimeout(function() {
+                    if (!editInputBox.contains(document.activeElement)) hideEditInput();
+                }, 0);
             });
             document.addEventListener('scroll', function() {
                 positionEditIcons();
@@ -931,9 +1010,23 @@ export function wrapForIframe(content: string): string {
                 previewLineHighlighted = [];
                 hideEditIcons();
             }
-            function highlightPreviewForSourceLine(lineNum) {
+
+            /** Shared activation: apply the purple highlight + anchor the W/H icons to els[0]. */
+            function activateElements(els, anchorLine) {
                 clearPreviewLineHighlight();
-                if (!lineNum || lineNum < 1) return;
+                if (!els || !els.length) return;
+                for (var i = 0; i < els.length; i++) {
+                    els[i].classList.add('xslt-preview-line-highlight');
+                    previewLineHighlighted.push(els[i]);
+                }
+                activeEditEl = els[0];
+                activeEditLine = anchorLine;
+                editIconsBox.style.display = 'flex';
+                positionEditIcons();
+            }
+
+            function highlightPreviewForSourceLine(lineNum) {
+                if (!lineNum || lineNum < 1) { clearPreviewLineHighlight(); return; }
                 var els = [];
                 var fallbackLine = lineNum;
                 // If current cursor line has no mapped output node (e.g. xsl:value-of text line),
@@ -944,18 +1037,11 @@ export function wrapForIframe(content: string): string {
                     if (els.length) break;
                     fallbackLine--;
                 }
-                if (!els.length) return;
-                for (var i = 0; i < els.length; i++) {
-                    els[i].classList.add('xslt-preview-line-highlight');
-                    previewLineHighlighted.push(els[i]);
-                }
+                if (!els.length) { clearPreviewLineHighlight(); return; }
                 // W/H quick-edit icons anchor to the first matched element, keyed by the
                 // actual matched source line (fallbackLine), which is what maps 1:1 back
                 // to the tag in the XSLT source that styleEdit.ts will locate and patch.
-                activeEditEl = els[0];
-                activeEditLine = fallbackLine;
-                editIconsBox.style.display = 'flex';
-                positionEditIcons();
+                activateElements(els, fallbackLine);
                 try {
                     els[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
                 } catch (err) {}
@@ -971,6 +1057,9 @@ export function wrapForIframe(content: string): string {
                     if (isNaN(n)) {
                         clearPreviewLineHighlight();
                         return;
+                    }
+                    if (lastClickLine !== null && String(n) === String(lastClickLine) && (Date.now() - lastClickAt) < 1000) {
+                        return; // echo of our own click-driven activation; already precise, don't re-derive
                     }
                     highlightPreviewForSourceLine(n);
                 }
@@ -1028,23 +1117,30 @@ export function wrapForIframe(content: string): string {
                 if (e.relatedTarget && (t.contains(e.relatedTarget) || (parentWithLine && parentWithLine.contains(e.relatedTarget)))) return;
                 clearHover();
             });
+            document.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const target = e.target.closest('[data-source-line]');
+                if (target) {
+                    const line = target.getAttribute('data-source-line');
+                    // Activate the EXACT clicked element right away — don't wait on the
+                    // editor round-trip, and don't re-derive it by line number later (that
+                    // querySelectorAll-by-line can land on a parent sharing the same line).
+                    lastClickLine = line;
+                    lastClickAt = Date.now();
+                    activateElements([target], parseInt(line, 10));
+                    window.parent.postMessage({ command: 'jumpToCode', line: line }, '*');
+                } else {
+                     clearPreviewLineHighlight();
+                     const t = e.target;
+                     window.parent.postMessage({
+                        command: 'jumpToCode',
+                        tag: t.tagName.toLowerCase(),
+                        className: t.className,
+                        id: t.id
+                     }, '*');
+                }
+            });
         })();
-        document.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const target = e.target.closest('[data-source-line]');
-            if (target) {
-                const line = target.getAttribute('data-source-line');
-                window.parent.postMessage({ command: 'jumpToCode', line: line }, '*');
-            } else {
-                 const t = e.target;
-                 window.parent.postMessage({
-                    command: 'jumpToCode',
-                    tag: t.tagName.toLowerCase(),
-                    className: t.className,
-                    id: t.id
-                 }, '*');
-            }
-        });
     </script>
     `;
     if (content.includes('</body>')) {

@@ -496,10 +496,10 @@ export function activate(context: vscode.ExtensionContext) {
                             activeXslt &&
                             typeof message.line === 'number' &&
                             (message.prop === 'width' || message.prop === 'height') &&
-                            typeof message.value === 'string' &&
-                            message.value.trim()
+                            typeof message.value === 'string'
                         ) {
-                            const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value.trim());
+                            // Empty value means "remove the declaration" (W/H slider dragged to 0).
+                            const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
                             if (ok && currentPanel && activeXml && activeXslt) runUpdate();
                         }
                         break;

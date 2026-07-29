@@ -81,12 +81,31 @@ function withStyleProp(attrs: string, prop: 'width' | 'height', value: string): 
     return attrs.slice(0, idx) + ` style=${quote}${newInner}${quote}` + attrs.slice(idx + styleMatch[0].length);
 }
 
+/** Remove `prop`'s declaration from an attribute string's style="" (dropping the whole attribute if it's left empty). */
+function withoutStyleProp(attrs: string, prop: 'width' | 'height'): string {
+    const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
+    if (!styleMatch) return attrs; // nothing to remove
+    const quoted = styleMatch[1];
+    const quote = quoted[0];
+    const inner = quoted.slice(1, -1);
+    const declRe = new RegExp('(^|;)\\s*' + prop + '\\s*:[^;]*;?', 'i');
+    const newInner = inner.replace(declRe, (_m, sep: string) => sep).trim();
+    const idx = styleMatch.index ?? 0;
+    if (!newInner) {
+        // Style is now empty: drop the whole attribute (including its leading space).
+        return attrs.slice(0, idx) + attrs.slice(idx + styleMatch[0].length);
+    }
+    return attrs.slice(0, idx) + ` style=${quote}${newInner}${quote}` + attrs.slice(idx + styleMatch[0].length);
+}
+
 /**
  * Patch `prop` (width/height) into the inline style of the output tag whose
- * data-source-line is `line`. Always writes an inline `style="..."` declaration
- * (adding the attribute if absent) — this reliably overrides any width/height
- * coming from a CSS class or a legacy `width=""` HTML attribute, regardless of
- * where the original sizing came from.
+ * data-source-line is `line`. A non-empty `value` writes/updates an inline
+ * `style="..."` declaration (adding the attribute if absent) — this reliably
+ * overrides any width/height coming from a CSS class or a legacy `width=""`
+ * HTML attribute, regardless of where the original sizing came from. An empty
+ * `value` REMOVES the declaration instead (dropping the whole `style` attribute
+ * if that was its only declaration) — used when the W/H slider is dragged to 0.
  *
  * Returns true if the edit was applied.
  */
@@ -104,7 +123,8 @@ export async function applyInlineStyleEdit(
     }
 
     const { body, selfClose } = splitSelfClose(tag.attrs);
-    const newBody = withStyleProp(body, prop, value);
+    const trimmedValue = value.trim();
+    const newBody = trimmedValue ? withStyleProp(body, prop, trimmedValue) : withoutStyleProp(body, prop);
     const newTagText = `<${tag.tagName}${newBody}${selfClose}>`;
 
     const startPos = doc.positionAt(tag.start);
