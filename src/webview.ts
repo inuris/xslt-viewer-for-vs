@@ -832,7 +832,12 @@ export function wrapForIframe(content: string): string {
                 '#xslt-edit-input-box{position:fixed;z-index:100000;display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.85);border:1px solid #AB47BC;border-radius:4px;padding:5px 10px;box-shadow:0 1px 4px rgba(0,0,0,0.3);font-family:sans-serif;}' +
                 '#xslt-edit-input-box input[type=range]{width:110px;accent-color:#AB47BC;}' +
                 '#xslt-edit-input-box input[type=number]{width:54px;font-size:12px;padding:2px 4px;border-radius:3px;border:1px solid #AB47BC;outline:none;background:#fff;color:#111;}' +
-                '#xslt-edit-input-box .xslt-edit-unit{font-size:11px;color:#fff;opacity:0.85;}';
+                '#xslt-edit-input-box .xslt-edit-unit{font-size:11px;color:#fff;opacity:0.85;}' +
+                '.xslt-edge-handle{position:fixed;z-index:99998;display:none;background:transparent;}' +
+                '.xslt-edge-handle.horiz{cursor:ew-resize;}' +
+                '.xslt-edge-handle.vert{cursor:ns-resize;}' +
+                '.xslt-edge-handle:hover,.xslt-edge-handle.dragging{background:rgba(171,71,188,0.45);}' +
+                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -861,7 +866,7 @@ export function wrapForIframe(content: string): string {
             editInputBox.appendChild(editUnit);
             document.body.appendChild(editInputBox);
 
-            var activeEditEl = null;   // the exact element the icons/edits are anchored to
+            var activeEditEl = null;   // the exact element the icons/edits/handles are anchored to
             var activeEditLine = null; // its data-source-line (maps 1:1 to the XSLT source tag)
             var editingProp = null;    // 'width' | 'height' while the slider popup is open
             var editOriginalValue = ''; // activeEditEl.style[prop] before this edit session, for Escape
@@ -881,6 +886,14 @@ export function wrapForIframe(content: string): string {
                 editIconsBox.style.top = Math.max(2, r.top - 24) + 'px';
             }
 
+            /** Anchor the slider popup under the icon box's CURRENT position (not a stale click rect) so it follows on scroll/resize. */
+            function positionEditInputBox() {
+                if (editInputBox.style.display === 'none') return;
+                var r = editIconsBox.getBoundingClientRect();
+                editInputBox.style.left = Math.max(2, r.left) + 'px';
+                editInputBox.style.top = Math.max(2, r.bottom + 4) + 'px';
+            }
+
             function hideEditInput() {
                 editInputBox.style.display = 'none';
                 editingProp = null;
@@ -889,6 +902,7 @@ export function wrapForIframe(content: string): string {
             function hideEditIcons() {
                 editIconsBox.style.display = 'none';
                 hideEditInput();
+                hideEdgeHandles();
                 activeEditEl = null;
                 activeEditLine = null;
             }
@@ -899,13 +913,27 @@ export function wrapForIframe(content: string): string {
                 return m ? parseFloat(m[1]) : null;
             }
 
+            /** Shared commit path for both the slider popup and the edge-drag handles. 0 (or less) removes the declaration instead of writing "0px". */
+            function commitStyleValue(prop, line, px) {
+                if (line == null) return;
+                if (px <= 0) {
+                    if (activeEditEl) activeEditEl.style.removeProperty(prop);
+                    window.parent.postMessage({ command: 'editElementStyle', line: line, prop: prop, value: '' }, '*');
+                } else {
+                    var value = px + 'px';
+                    if (activeEditEl) activeEditEl.style[prop] = value;
+                    window.parent.postMessage({ command: 'editElementStyle', line: line, prop: prop, value: value }, '*');
+                }
+            }
+
             function applyLivePreview(px) {
                 if (!activeEditEl || !editingProp) return;
                 activeEditEl.style[editingProp] = px + 'px';
                 positionEditIcons();
+                positionEdgeHandles();
             }
 
-            function showEditInput(prop, btn) {
+            function showEditInput(prop) {
                 if (!activeEditEl) return;
                 var parent = activeEditEl.parentElement;
                 var parentRect = parent ? parent.getBoundingClientRect() : null;
@@ -928,35 +956,27 @@ export function wrapForIframe(content: string): string {
                 editNumber.max = String(editMax);
                 editNumber.value = String(currentPx);
 
-                var br = btn.getBoundingClientRect();
-                editInputBox.style.left = Math.max(2, br.left) + 'px';
-                editInputBox.style.top = Math.max(2, br.bottom + 4) + 'px';
                 editInputBox.style.display = 'flex';
+                positionEditInputBox();
                 editSlider.focus();
             }
 
             function commitEdit() {
                 if (!activeEditEl || activeEditLine == null || !editingProp) { hideEditInput(); return; }
                 var prop = editingProp;
+                var line = activeEditLine;
                 var px = parseInt(editSlider.value, 10) || 0;
                 hideEditInput();
-                if (px <= 0) {
-                    // 0 means "remove the width/height styling" rather than pin it to 0px.
-                    activeEditEl.style.removeProperty(prop);
-                    positionEditIcons();
-                    window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: '' }, '*');
-                } else {
-                    var value = px + 'px';
-                    activeEditEl.style[prop] = value;
-                    positionEditIcons();
-                    window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
-                }
+                commitStyleValue(prop, line, px);
+                positionEditIcons();
+                positionEdgeHandles();
             }
 
             function cancelEdit() {
                 if (activeEditEl && editingProp) {
                     if (editOriginalValue) activeEditEl.style[editingProp] = editOriginalValue;
                     else activeEditEl.style.removeProperty(editingProp);
+                    positionEdgeHandles();
                 }
                 hideEditInput();
             }
@@ -965,7 +985,7 @@ export function wrapForIframe(content: string): string {
                 e.stopPropagation();
                 var btn = e.target.closest ? e.target.closest('.xslt-edit-icon-btn') : null;
                 if (!btn) return;
-                showEditInput(btn.getAttribute('data-prop'), btn);
+                showEditInput(btn.getAttribute('data-prop'));
             });
             editInputBox.addEventListener('click', function(e) { e.stopPropagation(); });
             editSlider.addEventListener('input', function() {
@@ -993,14 +1013,141 @@ export function wrapForIframe(content: string): string {
                     if (!editInputBox.contains(document.activeElement)) hideEditInput();
                 }, 0);
             });
+            // NOTE: scroll must only REPOSITION the popup, never hide it — focusing the
+            // slider/number input right after it appears can itself trigger a browser
+            // "scroll focused element into view", and hiding on that scroll was closing
+            // the popup within ~100ms of it opening.
             document.addEventListener('scroll', function() {
                 positionEditIcons();
-                hideEditInput();
+                positionEditInputBox();
+                positionEdgeHandles();
             }, true);
             window.addEventListener('resize', function() {
                 positionEditIcons();
-                hideEditInput();
+                positionEditInputBox();
+                positionEdgeHandles();
             });
+
+            // ── Edge-drag handles (Photoshop-style): drag the active element's left/right
+            // border to resize width, top/bottom border to resize height. ─────────────────
+            var HANDLE_SIZE = 6;
+            var dragLabel = document.createElement('div');
+            dragLabel.id = 'xslt-drag-label';
+            document.body.appendChild(dragLabel);
+
+            function makeHandle(edge, orientation) {
+                var h = document.createElement('div');
+                h.className = 'xslt-edge-handle ' + orientation;
+                h.addEventListener('mousedown', function(e) { startEdgeDrag(edge, e); });
+                h.addEventListener('click', function(e) { e.stopPropagation(); });
+                document.body.appendChild(h);
+                return h;
+            }
+            var handleLeft = makeHandle('left', 'horiz');
+            var handleRight = makeHandle('right', 'horiz');
+            var handleTop = makeHandle('top', 'vert');
+            var handleBottom = makeHandle('bottom', 'vert');
+            var edgeHandles = [handleLeft, handleRight, handleTop, handleBottom];
+
+            function positionEdgeHandles() {
+                if (!activeEditEl) { hideEdgeHandles(); return; }
+                var r = activeEditEl.getBoundingClientRect();
+                var half = HANDLE_SIZE / 2;
+                handleLeft.style.left = (r.left - half) + 'px';
+                handleLeft.style.top = r.top + 'px';
+                handleLeft.style.width = HANDLE_SIZE + 'px';
+                handleLeft.style.height = r.height + 'px';
+
+                handleRight.style.left = (r.right - half) + 'px';
+                handleRight.style.top = r.top + 'px';
+                handleRight.style.width = HANDLE_SIZE + 'px';
+                handleRight.style.height = r.height + 'px';
+
+                handleTop.style.left = r.left + 'px';
+                handleTop.style.top = (r.top - half) + 'px';
+                handleTop.style.width = r.width + 'px';
+                handleTop.style.height = HANDLE_SIZE + 'px';
+
+                handleBottom.style.left = r.left + 'px';
+                handleBottom.style.top = (r.bottom - half) + 'px';
+                handleBottom.style.width = r.width + 'px';
+                handleBottom.style.height = HANDLE_SIZE + 'px';
+
+                edgeHandles.forEach(function(h) { h.style.display = 'block'; });
+            }
+            function hideEdgeHandles() {
+                edgeHandles.forEach(function(h) { h.style.display = 'none'; h.classList.remove('dragging'); });
+            }
+
+            var dragState = null; // { handle, prop, sign, startCoord, startPx, line }
+
+            function startEdgeDrag(edge, e) {
+                if (!activeEditEl || activeEditLine == null) return;
+                if (e.button !== undefined && e.button !== 0) return; // left mouse button only
+                e.preventDefault();
+                e.stopPropagation();
+                hideEditInput(); // close the slider popup if it was open, avoid stale state
+                var prop = (edge === 'left' || edge === 'right') ? 'width' : 'height';
+                var sign = (edge === 'right' || edge === 'bottom') ? 1 : -1;
+                var current = activeEditEl.style[prop];
+                var startPx = parsePx(current);
+                if (startPx == null) {
+                    var r = activeEditEl.getBoundingClientRect();
+                    startPx = prop === 'width' ? r.width : r.height;
+                }
+                var handle = edge === 'left' ? handleLeft : edge === 'right' ? handleRight : edge === 'top' ? handleTop : handleBottom;
+                handle.classList.add('dragging');
+                dragState = {
+                    handle: handle,
+                    prop: prop,
+                    sign: sign,
+                    startCoord: prop === 'width' ? e.clientX : e.clientY,
+                    startPx: startPx,
+                    line: activeEditLine,
+                };
+                document.body.style.cursor = prop === 'width' ? 'ew-resize' : 'ns-resize';
+                document.addEventListener('mousemove', onEdgeDragMove);
+                document.addEventListener('mouseup', onEdgeDragEnd);
+            }
+
+            function computeDragPx(e) {
+                var coord = dragState.prop === 'width' ? e.clientX : e.clientY;
+                var delta = (coord - dragState.startCoord) * dragState.sign;
+                return Math.max(0, Math.round(dragState.startPx + delta));
+            }
+
+            function onEdgeDragMove(e) {
+                if (!dragState || !activeEditEl) return;
+                var newPx = computeDragPx(e);
+                activeEditEl.style[dragState.prop] = newPx + 'px';
+                positionEditIcons();
+                positionEdgeHandles();
+                dragLabel.textContent = (dragState.prop === 'width' ? 'W: ' : 'H: ') + newPx + 'px';
+                dragLabel.style.left = (e.clientX + 14) + 'px';
+                dragLabel.style.top = (e.clientY + 14) + 'px';
+                dragLabel.style.display = 'block';
+            }
+
+            function onEdgeDragEnd(e) {
+                if (!dragState) return;
+                var newPx = computeDragPx(e);
+                var prop = dragState.prop;
+                var line = dragState.line;
+                var handle = dragState.handle;
+                endDrag();
+                commitStyleValue(prop, line, newPx);
+                if (handle) handle.classList.remove('dragging');
+                positionEditIcons();
+                positionEdgeHandles();
+            }
+
+            function endDrag() {
+                dragState = null;
+                document.body.style.cursor = '';
+                dragLabel.style.display = 'none';
+                document.removeEventListener('mousemove', onEdgeDragMove);
+                document.removeEventListener('mouseup', onEdgeDragEnd);
+            }
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
@@ -1011,7 +1158,7 @@ export function wrapForIframe(content: string): string {
                 hideEditIcons();
             }
 
-            /** Shared activation: apply the purple highlight + anchor the W/H icons to els[0]. */
+            /** Shared activation: apply the purple highlight + anchor the W/H icons and edge handles to els[0]. */
             function activateElements(els, anchorLine) {
                 clearPreviewLineHighlight();
                 if (!els || !els.length) return;
@@ -1023,6 +1170,7 @@ export function wrapForIframe(content: string): string {
                 activeEditLine = anchorLine;
                 editIconsBox.style.display = 'flex';
                 positionEditIcons();
+                positionEdgeHandles();
             }
 
             function highlightPreviewForSourceLine(lineNum) {
