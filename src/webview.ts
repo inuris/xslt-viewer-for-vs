@@ -827,12 +827,6 @@ export function wrapForIframe(content: string): string {
         (function() {
             var hlStyle = document.createElement('style');
             hlStyle.textContent = '.xslt-preview-line-highlight{outline:3px solid #AB47BC!important;box-shadow:0 0 0 2px rgba(171,71,188,0.45);z-index:2;position:relative;}' +
-                '.xslt-edit-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:3px;border:1px solid rgba(255,255,255,0.35);background:#AB47BC;color:#fff;font:600 11px sans-serif;cursor:pointer;padding:0;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);}' +
-                '.xslt-edit-icon-btn:hover{background:#8e35a0;}' +
-                '#xslt-edit-input-box{position:fixed;z-index:100000;display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.85);border:1px solid #AB47BC;border-radius:4px;padding:5px 10px;box-shadow:0 1px 4px rgba(0,0,0,0.3);font-family:sans-serif;}' +
-                '#xslt-edit-input-box input[type=range]{width:110px;accent-color:#AB47BC;}' +
-                '#xslt-edit-input-box input[type=number]{width:54px;font-size:12px;padding:2px 4px;border-radius:3px;border:1px solid #AB47BC;outline:none;background:#fff;color:#111;}' +
-                '#xslt-edit-input-box .xslt-edit-unit{font-size:11px;color:#fff;opacity:0.85;}' +
                 '.xslt-edge-handle{position:fixed;z-index:99998;display:none;background:transparent;}' +
                 '.xslt-edge-handle.horiz{cursor:ew-resize;}' +
                 '.xslt-edge-handle.vert{cursor:ns-resize;}' +
@@ -841,36 +835,8 @@ export function wrapForIframe(content: string): string {
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
-            // ── Active-element W/H quick-edit icons ─────────────────────────────
-            var editIconsBox = document.createElement('div');
-            editIconsBox.id = 'xslt-edit-icons';
-            editIconsBox.style.cssText = 'position:fixed;z-index:99999;display:none;gap:4px;';
-            editIconsBox.innerHTML =
-                '<button type="button" class="xslt-edit-icon-btn" data-prop="width" title="Edit width">W</button>' +
-                '<button type="button" class="xslt-edit-icon-btn" data-prop="height" title="Edit height">H</button>';
-            document.body.appendChild(editIconsBox);
-
-            var editInputBox = document.createElement('div');
-            editInputBox.id = 'xslt-edit-input-box';
-            var editSlider = document.createElement('input');
-            editSlider.type = 'range';
-            editSlider.min = '0';
-            var editNumber = document.createElement('input');
-            editNumber.type = 'number';
-            editNumber.min = '0';
-            var editUnit = document.createElement('span');
-            editUnit.className = 'xslt-edit-unit';
-            editUnit.textContent = 'px';
-            editInputBox.appendChild(editSlider);
-            editInputBox.appendChild(editNumber);
-            editInputBox.appendChild(editUnit);
-            document.body.appendChild(editInputBox);
-
-            var activeEditEl = null;   // the exact element the icons/edits/handles are anchored to
+            var activeEditEl = null;   // the exact element the edge handles are anchored to
             var activeEditLine = null; // its data-source-line (maps 1:1 to the XSLT source tag)
-            var editingProp = null;    // 'width' | 'height' while the slider popup is open
-            var editOriginalValue = ''; // activeEditEl.style[prop] before this edit session, for Escape
-            var editMax = 100;
             // A click already activates the exact clicked element synchronously (see the
             // document click handler below). The extension still echoes back a
             // 'highlightSourceLine' message once the editor cursor move round-trips — ignore
@@ -878,34 +844,12 @@ export function wrapForIframe(content: string): string {
             // same source line) what the click already pinned precisely.
             var lastClickLine = null;
             var lastClickAt = 0;
-
-            function positionEditIcons() {
-                if (!activeEditEl || editIconsBox.style.display === 'none') return;
-                var r = activeEditEl.getBoundingClientRect();
-                editIconsBox.style.left = Math.max(2, r.right - 46) + 'px';
-                editIconsBox.style.top = Math.max(2, r.top - 24) + 'px';
-            }
-
-            /** Anchor the slider popup under the icon box's CURRENT position (not a stale click rect) so it follows on scroll/resize. */
-            function positionEditInputBox() {
-                if (editInputBox.style.display === 'none') return;
-                var r = editIconsBox.getBoundingClientRect();
-                editInputBox.style.left = Math.max(2, r.left) + 'px';
-                editInputBox.style.top = Math.max(2, r.bottom + 4) + 'px';
-            }
-
-            function hideEditInput() {
-                editInputBox.style.display = 'none';
-                editingProp = null;
-            }
-
-            function hideEditIcons() {
-                editIconsBox.style.display = 'none';
-                hideEditInput();
-                hideEdgeHandles();
-                activeEditEl = null;
-                activeEditLine = null;
-            }
+            // A completed edge-drag ends in a native mouseup that (since the pointer has
+            // usually moved off the handle) synthesizes a 'click' on whatever's underneath —
+            // often the outer body/table, which has no data-source-line. Left unswallowed,
+            // that stray click fell into the document click handler's "else" branch and
+            // deactivated the just-edited element. Suppress exactly one click after a drag.
+            var justDragged = false;
 
             function parsePx(v) {
                 if (!v) return null;
@@ -913,7 +857,7 @@ export function wrapForIframe(content: string): string {
                 return m ? parseFloat(m[1]) : null;
             }
 
-            /** Shared commit path for both the slider popup and the edge-drag handles. 0 (or less) removes the declaration instead of writing "0px". */
+            /** Commit path for the edge-drag handles. 0 (or less) removes the declaration instead of writing "0px". */
             function commitStyleValue(prop, line, px) {
                 if (line == null) return;
                 if (px <= 0) {
@@ -925,108 +869,6 @@ export function wrapForIframe(content: string): string {
                     window.parent.postMessage({ command: 'editElementStyle', line: line, prop: prop, value: value }, '*');
                 }
             }
-
-            function applyLivePreview(px) {
-                if (!activeEditEl || !editingProp) return;
-                activeEditEl.style[editingProp] = px + 'px';
-                positionEditIcons();
-                positionEdgeHandles();
-            }
-
-            function showEditInput(prop) {
-                if (!activeEditEl) return;
-                var parent = activeEditEl.parentElement;
-                var parentRect = parent ? parent.getBoundingClientRect() : null;
-                editMax = Math.max(1, Math.round(prop === 'width'
-                    ? (parentRect ? parentRect.width : document.documentElement.clientWidth)
-                    : (parentRect ? parentRect.height : document.documentElement.clientHeight)));
-
-                var currentInline = activeEditEl.style[prop];
-                editOriginalValue = currentInline || '';
-                var currentPx = parsePx(currentInline);
-                if (currentPx == null) {
-                    var r = activeEditEl.getBoundingClientRect();
-                    currentPx = prop === 'width' ? r.width : r.height;
-                }
-                currentPx = Math.min(Math.max(0, Math.round(currentPx)), editMax);
-
-                editingProp = prop;
-                editSlider.max = String(editMax);
-                editSlider.value = String(currentPx);
-                editNumber.max = String(editMax);
-                editNumber.value = String(currentPx);
-
-                editInputBox.style.display = 'flex';
-                positionEditInputBox();
-                editSlider.focus();
-            }
-
-            function commitEdit() {
-                if (!activeEditEl || activeEditLine == null || !editingProp) { hideEditInput(); return; }
-                var prop = editingProp;
-                var line = activeEditLine;
-                var px = parseInt(editSlider.value, 10) || 0;
-                hideEditInput();
-                commitStyleValue(prop, line, px);
-                positionEditIcons();
-                positionEdgeHandles();
-            }
-
-            function cancelEdit() {
-                if (activeEditEl && editingProp) {
-                    if (editOriginalValue) activeEditEl.style[editingProp] = editOriginalValue;
-                    else activeEditEl.style.removeProperty(editingProp);
-                    positionEdgeHandles();
-                }
-                hideEditInput();
-            }
-
-            editIconsBox.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var btn = e.target.closest ? e.target.closest('.xslt-edit-icon-btn') : null;
-                if (!btn) return;
-                showEditInput(btn.getAttribute('data-prop'));
-            });
-            editInputBox.addEventListener('click', function(e) { e.stopPropagation(); });
-            editSlider.addEventListener('input', function() {
-                editNumber.value = editSlider.value;
-                applyLivePreview(parseInt(editSlider.value, 10) || 0);
-            });
-            editNumber.addEventListener('input', function() {
-                var v = Math.min(Math.max(0, parseInt(editNumber.value, 10) || 0), editMax);
-                editSlider.value = String(v);
-                applyLivePreview(v);
-            });
-            editSlider.addEventListener('change', commitEdit);
-            editNumber.addEventListener('change', commitEdit);
-            [editSlider, editNumber].forEach(function(input) {
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') commitEdit();
-                    else if (e.key === 'Escape') cancelEdit();
-                    e.stopPropagation();
-                });
-            });
-            editInputBox.addEventListener('focusout', function() {
-                // Let focus land on the sibling control (slider <-> number) before deciding
-                // the popup truly lost focus.
-                setTimeout(function() {
-                    if (!editInputBox.contains(document.activeElement)) hideEditInput();
-                }, 0);
-            });
-            // NOTE: scroll must only REPOSITION the popup, never hide it — focusing the
-            // slider/number input right after it appears can itself trigger a browser
-            // "scroll focused element into view", and hiding on that scroll was closing
-            // the popup within ~100ms of it opening.
-            document.addEventListener('scroll', function() {
-                positionEditIcons();
-                positionEditInputBox();
-                positionEdgeHandles();
-            }, true);
-            window.addEventListener('resize', function() {
-                positionEditIcons();
-                positionEditInputBox();
-                positionEdgeHandles();
-            });
 
             // ── Edge-drag handles (Photoshop-style): drag the active element's left/right
             // border to resize width, top/bottom border to resize height. ─────────────────
@@ -1086,7 +928,6 @@ export function wrapForIframe(content: string): string {
                 if (e.button !== undefined && e.button !== 0) return; // left mouse button only
                 e.preventDefault();
                 e.stopPropagation();
-                hideEditInput(); // close the slider popup if it was open, avoid stale state
                 var prop = (edge === 'left' || edge === 'right') ? 'width' : 'height';
                 var sign = (edge === 'right' || edge === 'bottom') ? 1 : -1;
                 var current = activeEditEl.style[prop];
@@ -1120,7 +961,6 @@ export function wrapForIframe(content: string): string {
                 if (!dragState || !activeEditEl) return;
                 var newPx = computeDragPx(e);
                 activeEditEl.style[dragState.prop] = newPx + 'px';
-                positionEditIcons();
                 positionEdgeHandles();
                 dragLabel.textContent = (dragState.prop === 'width' ? 'W: ' : 'H: ') + newPx + 'px';
                 dragLabel.style.left = (e.clientX + 14) + 'px';
@@ -1137,7 +977,7 @@ export function wrapForIframe(content: string): string {
                 endDrag();
                 commitStyleValue(prop, line, newPx);
                 if (handle) handle.classList.remove('dragging');
-                positionEditIcons();
+                justDragged = true; // swallow the click this mouseup is about to synthesize
                 positionEdgeHandles();
             }
 
@@ -1148,6 +988,10 @@ export function wrapForIframe(content: string): string {
                 document.removeEventListener('mousemove', onEdgeDragMove);
                 document.removeEventListener('mouseup', onEdgeDragEnd);
             }
+
+            // Scroll/resize must only REPOSITION the handles, never hide them.
+            document.addEventListener('scroll', function() { positionEdgeHandles(); }, true);
+            window.addEventListener('resize', function() { positionEdgeHandles(); });
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
@@ -1155,10 +999,12 @@ export function wrapForIframe(content: string): string {
                     el.classList.remove('xslt-preview-line-highlight');
                 });
                 previewLineHighlighted = [];
-                hideEditIcons();
+                hideEdgeHandles();
+                activeEditEl = null;
+                activeEditLine = null;
             }
 
-            /** Shared activation: apply the purple highlight + anchor the W/H icons and edge handles to els[0]. */
+            /** Shared activation: apply the purple highlight + anchor the edge-drag handles to els[0]. */
             function activateElements(els, anchorLine) {
                 clearPreviewLineHighlight();
                 if (!els || !els.length) return;
@@ -1168,8 +1014,6 @@ export function wrapForIframe(content: string): string {
                 }
                 activeEditEl = els[0];
                 activeEditLine = anchorLine;
-                editIconsBox.style.display = 'flex';
-                positionEditIcons();
                 positionEdgeHandles();
             }
 
@@ -1186,9 +1030,9 @@ export function wrapForIframe(content: string): string {
                     fallbackLine--;
                 }
                 if (!els.length) { clearPreviewLineHighlight(); return; }
-                // W/H quick-edit icons anchor to the first matched element, keyed by the
-                // actual matched source line (fallbackLine), which is what maps 1:1 back
-                // to the tag in the XSLT source that styleEdit.ts will locate and patch.
+                // Edge-drag handles anchor to the first matched element, keyed by the actual
+                // matched source line (fallbackLine), which is what maps 1:1 back to the tag
+                // in the XSLT source that styleEdit.ts will locate and patch.
                 activateElements(els, fallbackLine);
                 try {
                     els[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
@@ -1267,6 +1111,12 @@ export function wrapForIframe(content: string): string {
             });
             document.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (justDragged) {
+                    // This click is the tail end of an edge-drag mouseup, not a real
+                    // element pick — consume it without touching the current activation.
+                    justDragged = false;
+                    return;
+                }
                 const target = e.target.closest('[data-source-line]');
                 if (target) {
                     const line = target.getAttribute('data-source-line');
