@@ -2,6 +2,13 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.33
+
+### Added
+- **Preview**: Added a Lock toggle (left of the Zoom dropdown) — when on, opening a different XML file no longer auto-switches the preview away from the current XML+XSLT pair.
+- **Preview**: Hover tooltip now shows a CSS-style selector (e.g. `td.input-name`, `span#header`) above the element's dimensions.
+- **Preview**: Click an element to activate it, then drag its left/right border to resize width or its top/bottom border to resize height (Photoshop-style), with a live px label while dragging. Dragging to 0 removes the width/height styling instead of pinning it to `0px`.
+
 ## 2.2.32
 
 ### Added
