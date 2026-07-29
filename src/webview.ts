@@ -288,7 +288,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         
         window.addEventListener('message', event => {
             const cmd = event.data && event.data.command;
-            if (cmd === 'jumpToCode' || cmd === 'showSetup') {
+            if (cmd === 'jumpToCode' || cmd === 'showSetup' || cmd === 'editElementStyle') {
                 vscode.postMessage(event.data);
             }
         });
@@ -826,14 +826,110 @@ export function wrapForIframe(content: string): string {
     <script>
         (function() {
             var hlStyle = document.createElement('style');
-            hlStyle.textContent = '.xslt-preview-line-highlight{outline:3px solid #AB47BC!important;box-shadow:0 0 0 2px rgba(171,71,188,0.45);z-index:2;position:relative;}';
+            hlStyle.textContent = '.xslt-preview-line-highlight{outline:3px solid #AB47BC!important;box-shadow:0 0 0 2px rgba(171,71,188,0.45);z-index:2;position:relative;}' +
+                '.xslt-edit-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:3px;border:1px solid rgba(255,255,255,0.35);background:#AB47BC;color:#fff;font:600 11px sans-serif;cursor:pointer;padding:0;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);}' +
+                '.xslt-edit-icon-btn:hover{background:#8e35a0;}' +
+                '#xslt-edit-input-box{position:fixed;z-index:100000;display:none;align-items:center;}' +
+                '#xslt-edit-input-box input{width:76px;font-size:12px;padding:2px 6px;border-radius:3px;border:1px solid #AB47BC;outline:none;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
+
+            // ── Active-element W/H quick-edit icons ─────────────────────────────
+            var editIconsBox = document.createElement('div');
+            editIconsBox.id = 'xslt-edit-icons';
+            editIconsBox.style.cssText = 'position:fixed;z-index:99999;display:none;gap:4px;';
+            editIconsBox.innerHTML =
+                '<button type="button" class="xslt-edit-icon-btn" data-prop="width" title="Edit width">W</button>' +
+                '<button type="button" class="xslt-edit-icon-btn" data-prop="height" title="Edit height">H</button>';
+            document.body.appendChild(editIconsBox);
+
+            var editInputBox = document.createElement('div');
+            editInputBox.id = 'xslt-edit-input-box';
+            var editInput = document.createElement('input');
+            editInput.type = 'text';
+            editInputBox.appendChild(editInput);
+            document.body.appendChild(editInputBox);
+
+            var activeEditEl = null;
+            var activeEditLine = null;
+
+            function positionEditIcons() {
+                if (!activeEditEl || editIconsBox.style.display === 'none') return;
+                var r = activeEditEl.getBoundingClientRect();
+                editIconsBox.style.left = Math.max(2, r.right - 46) + 'px';
+                editIconsBox.style.top = Math.max(2, r.top - 24) + 'px';
+            }
+
+            function hideEditInput() { editInputBox.style.display = 'none'; }
+
+            function hideEditIcons() {
+                editIconsBox.style.display = 'none';
+                hideEditInput();
+                activeEditEl = null;
+                activeEditLine = null;
+            }
+
+            function showEditInput(prop, btn) {
+                if (!activeEditEl) return;
+                var current = activeEditEl.style[prop];
+                if (!current) {
+                    var r = activeEditEl.getBoundingClientRect();
+                    current = Math.round(prop === 'width' ? r.width : r.height) + 'px';
+                }
+                editInput.value = current;
+                editInput.dataset.prop = prop;
+                var br = btn.getBoundingClientRect();
+                editInputBox.style.left = Math.max(2, br.left) + 'px';
+                editInputBox.style.top = Math.max(2, br.bottom + 4) + 'px';
+                editInputBox.style.display = 'flex';
+                editInput.focus();
+                editInput.select();
+            }
+
+            function commitEdit() {
+                if (!activeEditEl || activeEditLine == null) { hideEditInput(); return; }
+                var prop = editInput.dataset.prop;
+                var raw = editInput.value.trim();
+                hideEditInput();
+                if (!raw) return;
+                var value = /^-?\d+(\.\d+)?$/.test(raw) ? (raw + 'px') : raw;
+                activeEditEl.style[prop] = value; // optimistic live preview
+                positionEditIcons();
+                window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
+            }
+
+            editIconsBox.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var btn = e.target.closest ? e.target.closest('.xslt-edit-icon-btn') : null;
+                if (!btn) return;
+                showEditInput(btn.getAttribute('data-prop'), btn);
+            });
+            editInputBox.addEventListener('click', function(e) { e.stopPropagation(); });
+            editInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') commitEdit();
+                else if (e.key === 'Escape') hideEditInput();
+                e.stopPropagation();
+            });
+            editInput.addEventListener('blur', function() {
+                // Delay so a click on the icon box doesn't get eaten by the blur-triggered hide.
+                setTimeout(hideEditInput, 150);
+            });
+            document.addEventListener('scroll', function() {
+                positionEditIcons();
+                hideEditInput();
+            }, true);
+            window.addEventListener('resize', function() {
+                positionEditIcons();
+                hideEditInput();
+            });
+            // ─────────────────────────────────────────────────────────────────────
+
             function clearPreviewLineHighlight() {
                 previewLineHighlighted.forEach(function(el) {
                     el.classList.remove('xslt-preview-line-highlight');
                 });
                 previewLineHighlighted = [];
+                hideEditIcons();
             }
             function highlightPreviewForSourceLine(lineNum) {
                 clearPreviewLineHighlight();
@@ -853,6 +949,13 @@ export function wrapForIframe(content: string): string {
                     els[i].classList.add('xslt-preview-line-highlight');
                     previewLineHighlighted.push(els[i]);
                 }
+                // W/H quick-edit icons anchor to the first matched element, keyed by the
+                // actual matched source line (fallbackLine), which is what maps 1:1 back
+                // to the tag in the XSLT source that styleEdit.ts will locate and patch.
+                activeEditEl = els[0];
+                activeEditLine = fallbackLine;
+                editIconsBox.style.display = 'flex';
+                positionEditIcons();
                 try {
                     els[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
                 } catch (err) {}
@@ -876,9 +979,24 @@ export function wrapForIframe(content: string): string {
             var tip = document.createElement('div');
             tip.id = 'xslt-dimensions-tooltip';
             tip.style.cssText = 'position:fixed;z-index:99999;padding:4px 8px;background:rgba(0,0,0,0.85);color:#fff;font-size:12px;font-family:sans-serif;border-radius:4px;pointer-events:none;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);display:none;';
+            var tipSelector = document.createElement('div');
+            tipSelector.style.cssText = 'font-weight:600;margin-bottom:2px;';
+            var tipDims = document.createElement('div');
+            tip.appendChild(tipSelector);
+            tip.appendChild(tipDims);
             document.body.appendChild(tip);
+            function buildSelector(el) {
+                var tag = el.tagName ? el.tagName.toLowerCase() : '';
+                if (el.id) return tag + '#' + el.id;
+                if (el.className && typeof el.className === 'string' && el.className.trim()) {
+                    var first = el.className.trim().split(/\s+/)[0];
+                    if (first) return tag + '.' + first;
+                }
+                return tag;
+            }
             function showTip(el) {
-                tip.textContent = el.offsetWidth + ' × ' + el.offsetHeight;
+                tipSelector.textContent = buildSelector(el);
+                tipDims.textContent = el.offsetWidth + ' × ' + el.offsetHeight;
                 tip.style.display = 'block';
                 var r = el.getBoundingClientRect();
                 var topVal = r.top - tip.offsetHeight - 4;

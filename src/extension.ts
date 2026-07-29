@@ -10,6 +10,7 @@ import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wra
 import { formatXml } from './formatter';
 import { checkDependencies, showSetupForced } from './setup';
 import { registerBase64Preview } from './base64Preview';
+import { applyInlineStyleEdit } from './styleEdit';
 
 // ─── Transformation error helpers ────────────────────────────────────────────
 
@@ -489,6 +490,18 @@ export function activate(context: vscode.ExtensionContext) {
                         break;
                     case 'toggleLock':
                         previewLocked = !!message.locked;
+                        break;
+                    case 'editElementStyle':
+                        if (
+                            activeXslt &&
+                            typeof message.line === 'number' &&
+                            (message.prop === 'width' || message.prop === 'height') &&
+                            typeof message.value === 'string' &&
+                            message.value.trim()
+                        ) {
+                            const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value.trim());
+                            if (ok && currentPanel && activeXml && activeXslt) runUpdate();
+                        }
                         break;
                 }
             }, undefined, context.subscriptions);
