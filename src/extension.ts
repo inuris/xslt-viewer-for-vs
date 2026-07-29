@@ -165,6 +165,8 @@ export function activate(context: vscode.ExtensionContext) {
     let highlightPreviewThrottle: NodeJS.Timeout | undefined;
     /** Which of the pair was last shown by Switch File (so we can toggle when e.g. Preview has focus) */
     let lastSwitchedTo: 'xml' | 'xslt' | null = null;
+    /** When true, opening a different XML file must not auto-switch the preview away from the current pair. */
+    let previewLocked = false;
 
     const postHighlightPreviewLine = (line: number | null) => {
         if (!currentPanel?.visible) return;
@@ -338,7 +340,7 @@ export function activate(context: vscode.ExtensionContext) {
                 .inspect<number>('xslt-viewer.previewZoom');
             const initialZoom = inspected?.globalValue ?? inspected?.defaultValue ?? 100;
 
-            currentPanel.webview.html = getWebviewShell(initialZoom);
+            currentPanel.webview.html = getWebviewShell(initialZoom, previewLocked);
 
             currentPanel.onDidDispose(() => {
                 currentPanel = undefined;
@@ -485,6 +487,9 @@ export function activate(context: vscode.ExtensionContext) {
                     case 'jumpToImage':
                         await handleJumpToImage(message.range);
                         break;
+                    case 'toggleLock':
+                        previewLocked = !!message.locked;
+                        break;
                 }
             }, undefined, context.subscriptions);
         } else {
@@ -516,6 +521,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(async editor => {
             if (!editor || !currentPanel || !currentPanel.visible) return;
+            if (previewLocked) return;
             const doc = editor.document;
             if (doc.languageId === 'xml' || doc.fileName.endsWith('.xml')) {
                 const text = doc.getText();

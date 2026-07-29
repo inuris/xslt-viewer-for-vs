@@ -71,8 +71,9 @@
 The extension attempts to intelligently pair XML and XSLT files:
 - **From XML:** Checks for `<?xml-stylesheet href="...">`.
 - **From XSLT:** Prompts user to pick an XML file.
-- **Auto-update:** When the active editor switches to a different XML file with a stylesheet link, the pair is updated automatically.
-- **Manual:** `xslt-viewer.switchFile` command toggles between the active XML and XSLT, updating the path bar label.
+- **Auto-update:** When the active editor switches to a different XML file with a stylesheet link, the pair is updated automatically — **unless the preview is locked** (see below), in which case this re-pairing is skipped entirely and the current pair keeps previewing.
+- **Manual:** `xslt-viewer.switchFile` command toggles between the active XML and XSLT, updating the path bar label. Unaffected by the lock (it toggles within the same pair, it doesn't re-pair to a different file).
+- **Lock toggle:** `previewLocked` (module-scoped state in `extension.ts`, not persisted) guards the `onDidChangeActiveTextEditor` re-pairing listener. Toggled via the toolbar's Lock button (`🔓 Lock` / `🔒 Locked`, left of the Zoom dropdown) — webview sends `{ command: 'toggleLock', locked }`; extension stores it and passes the current value into `getWebviewShell(initialZoom, previewLocked)` whenever the panel (re)opens so the button reflects reality.
 
 ### 3. "Click-to-Jump" Navigation (and reverse: cursor → preview highlight)
 - **Frontend (Webview):** The rendered HTML contains elements with `data-source-line` (injected by `instrumentXslt`).
@@ -120,10 +121,10 @@ The extension attempts to intelligently pair XML and XSLT files:
 
 ## 3. Webview Shell Structure (`getWebviewShell`)
 - **Path Bar** (`#path-bar`): Shows `relativePath` of the currently previewed file + a Switch button (label: "XSLT" or "XML").
-- **Toolbar** (`#toolbar`): Export PDF button | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
+- **Toolbar** (`#toolbar`): Export PDF button | Lock toggle (`🔓 Lock` / `🔒 Locked`) | Zoom dropdown (25/50/75/100%) | Images sidebar toggle. The Lock button sits immediately left of the Zoom dropdown and, when on, prevents the preview from auto-switching to a different XML file's pair (see §2). The zoom dropdown is initialized from `xslt-viewer.previewZoom`, and changes are sent back via `setPreviewZoom` to persist the last choice.
 - **Content Area** (`#main-container`): `<iframe id="preview-frame">` (sandboxed) + collapsible `#sidebar` (250 px, hidden by default).
-- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear), `previewReplaceImage` (temporary live image swap), `previewResetImage` (restore original preview HTML).
-- **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`. Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
+- **Messages from Extension:** `update` (full refresh; may include `highlightLine` for post-load cursor sync), `setSwitchLabel`, `setPath`, `setLockState` (sync the Lock button, e.g. on panel re-init), `highlightPreviewLine` (cursor moved in XSLT; `line` or `null` to clear), `previewReplaceImage` (temporary live image swap), `previewResetImage` (restore original preview HTML).
+- **Messages to Extension:** `jumpToCode`, `switchFile`, `exportPdf`, `exportImage`, `replaceImage`, `jumpToImage`, `toggleLock` (`{ locked: boolean }`). Replace panel also sends `replaceImageReady`, `replaceImagePickFile`, `replaceImageApply`, `replaceImageDelete`, `replaceImageCancel`.
 
 ## 4. Comparison with Web App (`ref/`)
 This project is a port of the "XSLT Viewer Cloud" (Web App).

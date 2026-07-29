@@ -2,7 +2,7 @@
  * Webview HTML shell and iframe content helpers for XSLT Preview panel.
  */
 
-export function getWebviewShell(initialZoom: number = 100): string {
+export function getWebviewShell(initialZoom: number = 100, initialLocked: boolean = false): string {
     const zoomOptions = [25, 50, 75, 100] as const;
     const safeZoom = zoomOptions.includes(initialZoom as any) ? initialZoom : 100;
     return `<!DOCTYPE html>
@@ -69,6 +69,12 @@ export function getWebviewShell(initialZoom: number = 100): string {
         }
         .btn:hover { background-color: var(--vscode-toolbar-hoverBackground); }
         .btn:active { background-color: var(--vscode-toolbar-activeBackground); }
+        .btn.locked {
+            background-color: var(--vscode-inputOption-activeBackground);
+            color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+            border-color: var(--vscode-inputOption-activeBorder, transparent);
+        }
+        .btn.locked:hover { background-color: var(--vscode-inputOption-activeBackground); }
 
         .toolbar-zoom {
             background-color: var(--vscode-input-background);
@@ -155,6 +161,10 @@ export function getWebviewShell(initialZoom: number = 100): string {
     <div id="toolbar">
         <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
         <div style="flex:1"></div>
+        <button type="button" id="lock-btn" class="btn${initialLocked ? ' locked' : ''}"
+                title="Lock preview: keep showing the current XML+XSLT pair even when you open another XML file"
+                aria-pressed="${initialLocked ? 'true' : 'false'}"
+                onclick="toggleLock()">${initialLocked ? '🔒 Locked' : '🔓 Lock'}</button>
         <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <select id="zoom-select" class="toolbar-zoom" aria-label="Zoom">
                 <option value="25"${safeZoom === 25 ? ' selected' : ''}>25%</option>
@@ -185,7 +195,22 @@ export function getWebviewShell(initialZoom: number = 100): string {
         const imgList = document.getElementById('image-list');
         const sidebar = document.getElementById('sidebar');
         const zoomSelect = document.getElementById('zoom-select');
+        const lockBtn = document.getElementById('lock-btn');
         let latestHtml = '';
+        let previewLocked = ${initialLocked ? 'true' : 'false'};
+
+        function updateLockBtn() {
+            if (!lockBtn) return;
+            lockBtn.textContent = previewLocked ? '🔒 Locked' : '🔓 Lock';
+            lockBtn.classList.toggle('locked', previewLocked);
+            lockBtn.setAttribute('aria-pressed', previewLocked ? 'true' : 'false');
+        }
+
+        function toggleLock() {
+            previewLocked = !previewLocked;
+            updateLockBtn();
+            post('toggleLock', { locked: previewLocked });
+        }
 
         function applyZoom() {
             if (!frame || !zoomSelect) return;
@@ -240,6 +265,10 @@ export function getWebviewShell(initialZoom: number = 100): string {
             if (msg.command === 'setPath' && msg.relativePath !== undefined) {
                const pathEl = document.getElementById('path-text');
                if (pathEl) pathEl.textContent = msg.relativePath;
+            }
+            if (msg.command === 'setLockState' && typeof msg.locked === 'boolean') {
+               previewLocked = msg.locked;
+               updateLockBtn();
             }
             if (msg.command === 'highlightPreviewLine' && frame && frame.contentWindow) {
                frame.contentWindow.postMessage(
