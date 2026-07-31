@@ -469,6 +469,15 @@ export function activate(context: vscode.ExtensionContext) {
                             // Empty value means "remove the declaration" (W/H slider dragged to 0,
                             // Bold toggled off, or the color swatch reset).
                             const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
+                            // applyInlineStyleEdit's editor.edit() fires workspace.onDidChangeTextDocument,
+                            // which schedules its own bare (unforced-highlight) runUpdate() ~500ms out via
+                            // triggerAutoUpdate/updateTimeout. Left alone, that later reload clobbers the
+                            // forced-highlight reload below and silently drops the active element again.
+                            // Cancel it -- the runUpdate we're about to do is already the authoritative one.
+                            if (updateTimeout) {
+                                clearTimeout(updateTimeout);
+                                updateTimeout = undefined;
+                            }
                             if (ok && currentPanel && activeXml && activeXslt) runUpdate(message.line);
                         }
                         break;
