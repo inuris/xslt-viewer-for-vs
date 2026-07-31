@@ -957,9 +957,7 @@ export function wrapForIframe(content: string): string {
                 '.xslt-qt-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:4px;color:#fff;font:700 13px/1 sans-serif;cursor:pointer;padding:0;}' +
                 '.xslt-qt-btn:hover{background:rgba(255,255,255,0.14);}' +
                 '.xslt-qt-btn.active{background:#0e639c;border-color:#1177bb;}' +
-                '.xslt-qt-color-input{-webkit-appearance:none;appearance:none;width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:transparent;cursor:pointer;}' +
-                '.xslt-qt-color-input::-webkit-color-swatch-wrapper{padding:2px;}' +
-                '.xslt-qt-color-input::-webkit-color-swatch{border:none;border-radius:2px;}';
+                '.xslt-qt-color-input{width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:transparent;cursor:pointer;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -1210,10 +1208,13 @@ export function wrapForIframe(content: string): string {
                 if (!activeEditEl) return;
                 commitGenericStyle('color', qtColorInput.value);
             });
-            // The picker can also close without a 'change' (value unchanged, or dismissed via
-            // Escape) — 'blur' fires whenever focus leaves the input regardless, so use it as
-            // the reliable signal that the popup is gone and a stray click may follow.
-            qtColorInput.addEventListener('blur', function(e) { justDragged = true; });
+            // NOTE: a 'blur' listener was tried here to also cover "closed without a value
+            // change" (Escape, or reopening and closing without picking) — reverted because
+            // 'blur' timing relative to the native popup's open/close isn't reliable across
+            // Chromium/Electron builds and made the *opening* click itself flaky (the flag
+            // could get set — and consumed by an unrelated click — before the real dismissal
+            // happened). 'change' alone covers the common case (user actually picks a color);
+            // dismissing without changing anything can still lose activation.
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
