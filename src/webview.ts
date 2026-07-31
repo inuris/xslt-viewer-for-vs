@@ -373,6 +373,18 @@ export function getEditImagePanelHtml(nonce?: number): string {
         .actions-spacer { flex: 1; min-width: 8px; }
         .dims-info { margin: 8px 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
         .hidden { display: none !important; }
+        .crop-wrap { position: relative; width: 260px; height: 180px; overflow: hidden; background: #1e1e1e; border: 1px solid var(--vscode-input-border); border-radius: 4px; user-select: none; }
+        .crop-wrap canvas { position: absolute; top: 0; left: 0; }
+        .crop-rect { position: absolute; box-sizing: border-box; border: 1px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); cursor: move; }
+        .crop-handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 1px solid #333; box-sizing: border-box; }
+        .crop-handle[data-h="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
+        .crop-handle[data-h="n"] { top: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+        .crop-handle[data-h="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
+        .crop-handle[data-h="e"] { top: 50%; right: -5px; margin-top: -5px; cursor: ew-resize; }
+        .crop-handle[data-h="se"] { bottom: -5px; right: -5px; cursor: nwse-resize; }
+        .crop-handle[data-h="s"] { bottom: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+        .crop-handle[data-h="sw"] { bottom: -5px; left: -5px; cursor: nesw-resize; }
+        .crop-handle[data-h="w"] { top: 50%; left: -5px; margin-top: -5px; cursor: ew-resize; }
     </style>
 </head>
 <body>
@@ -386,6 +398,26 @@ export function getEditImagePanelHtml(nonce?: number): string {
         <div class="section">
             <label for="paste-base64">Base64 image string (paste to replace):</label>
             <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
+        </div>
+    </div>
+    <div id="crop-section" class="section hidden">
+        <div class="section-title">Crop</div>
+        <div class="crop-wrap" id="crop-wrap">
+            <canvas id="crop-canvas" width="260" height="180"></canvas>
+            <div class="crop-rect" id="crop-rect">
+                <div class="crop-handle" data-h="nw"></div>
+                <div class="crop-handle" data-h="n"></div>
+                <div class="crop-handle" data-h="ne"></div>
+                <div class="crop-handle" data-h="e"></div>
+                <div class="crop-handle" data-h="se"></div>
+                <div class="crop-handle" data-h="s"></div>
+                <div class="crop-handle" data-h="sw"></div>
+                <div class="crop-handle" data-h="w"></div>
+            </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+            <button type="button" class="btn btn-secondary" id="btn-crop-reset">Reset crop</button>
+            <span class="dims-info" id="crop-info" style="margin:0">Crop: full image</span>
         </div>
     </div>
     <div id="dims-section" class="section hidden">
@@ -432,8 +464,10 @@ export function getEditImagePanelHtml(nonce?: number): string {
     </div>
     <script>
         const vscode = acquireVsCodeApi();
-        let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1, originalImageW: 0, originalImageH: 0 };
+        let state = { range: null, currentDataUri: null, newDataUri: null, origW: 0, origH: 0, ratio: 1, originalImageW: 0, originalImageH: 0,
+            cropSourceImg: null, crop: null, cropScale: 1, cropDrawW: 0, cropDrawH: 0, cropOffsetX: 0, cropOffsetY: 0 };
         let livePreviewTimer = null;
+        let cropDrag = null;
 
         window.addEventListener('message', function(e) {
             const msg = e.data;
@@ -551,10 +585,13 @@ export function getEditImagePanelHtml(nonce?: number): string {
             const opacityPct = getSliderValue('opacity-slider', 0, 100, 100);
             const opacity = opacityPct / 100;
             const adj = getAdjustments();
+            const isCropped = !!(state.crop && state.originalImageW > 0 && state.originalImageH > 0 &&
+                (Math.round(state.crop.x) !== 0 || Math.round(state.crop.y) !== 0 ||
+                 Math.round(state.crop.w) !== state.originalImageW || Math.round(state.crop.h) !== state.originalImageH));
             const needsProcess =
                 (state.originalImageW > 0 && state.originalImageH > 0 && w > 0 && h > 0 &&
                     (w !== state.originalImageW || h !== state.originalImageH || opacityPct !== 100 ||
-                     adj.hue !== 0 || adj.sat !== 0 || adj.bri !== 0));
+                     adj.hue !== 0 || adj.sat !== 0 || adj.bri !== 0 || isCropped));
             if (needsProcess) {
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
@@ -565,7 +602,11 @@ export function getEditImagePanelHtml(nonce?: number): string {
                     if (!ctx) return;
                     ctx.clearRect(0, 0, w, h);
                     ctx.globalAlpha = 1;
-                    ctx.drawImage(img, 0, 0, w, h);
+                    const sx = isCropped ? state.crop.x : 0;
+                    const sy = isCropped ? state.crop.y : 0;
+                    const sw = isCropped ? state.crop.w : state.originalImageW;
+                    const sh = isCropped ? state.crop.h : state.originalImageH;
+                    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
                     if (adj.hue !== 0 || adj.sat !== 0 || adj.bri !== 0) {
                         const imageData = ctx.getImageData(0, 0, w, h);
                         applyHsbToImageData(imageData, adj.hue, adj.sat, adj.bri);
@@ -620,6 +661,8 @@ export function getEditImagePanelHtml(nonce?: number): string {
                     state.originalImageW = state.origW;
                     state.originalImageH = state.origH;
                     state.ratio = state.origH ? (state.origW / state.origH) : 1;
+                    state.cropSourceImg = img;
+                    initCropForActiveSource();
                 }
                 document.getElementById('dims-section').classList.remove('hidden');
                 document.getElementById('width-px').value = state.origW;
@@ -639,6 +682,8 @@ export function getEditImagePanelHtml(nonce?: number): string {
                 state.originalImageW = img.naturalWidth;
                 state.originalImageH = img.naturalHeight;
                 state.ratio = state.originalImageW / state.originalImageH;
+                state.cropSourceImg = img;
+                initCropForActiveSource();
 
                 let targetW = state.originalImageW;
                 let targetH = state.originalImageH;
@@ -694,6 +739,133 @@ export function getEditImagePanelHtml(nonce?: number): string {
             const w = Math.max(1, Math.round(h * state.ratio));
             document.getElementById('width-px').value = w;
         }
+
+        // ---- Crop (Photoshop-style edge/corner drag on a mini preview canvas) ----
+
+        function initCropForActiveSource() {
+            const img = state.cropSourceImg;
+            if (!img || !state.originalImageW || !state.originalImageH) return;
+            const canvas = document.getElementById('crop-canvas');
+            const cw = canvas.width;
+            const ch = canvas.height;
+            const scale = Math.min(cw / state.originalImageW, ch / state.originalImageH);
+            state.cropScale = scale;
+            state.cropDrawW = state.originalImageW * scale;
+            state.cropDrawH = state.originalImageH * scale;
+            state.cropOffsetX = (cw - state.cropDrawW) / 2;
+            state.cropOffsetY = (ch - state.cropDrawH) / 2;
+            state.crop = { x: 0, y: 0, w: state.originalImageW, h: state.originalImageH };
+            document.getElementById('crop-section').classList.remove('hidden');
+            renderCropCanvas();
+            positionCropRectEl();
+            updateCropInfo();
+        }
+
+        function renderCropCanvas() {
+            const canvas = document.getElementById('crop-canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (state.cropSourceImg) {
+                ctx.drawImage(state.cropSourceImg, state.cropOffsetX, state.cropOffsetY, state.cropDrawW, state.cropDrawH);
+            }
+        }
+
+        function positionCropRectEl() {
+            const el = document.getElementById('crop-rect');
+            const c = state.crop;
+            if (!c) return;
+            el.style.left = (state.cropOffsetX + c.x * state.cropScale) + 'px';
+            el.style.top = (state.cropOffsetY + c.y * state.cropScale) + 'px';
+            el.style.width = (c.w * state.cropScale) + 'px';
+            el.style.height = (c.h * state.cropScale) + 'px';
+        }
+
+        function updateCropInfo() {
+            const c = state.crop;
+            const full = c && Math.round(c.x) === 0 && Math.round(c.y) === 0 &&
+                Math.round(c.w) === state.originalImageW && Math.round(c.h) === state.originalImageH;
+            document.getElementById('crop-info').textContent = (!c || full)
+                ? 'Crop: full image'
+                : ('Crop: ' + Math.round(c.w) + '×' + Math.round(c.h) + ' @ ' + Math.round(c.x) + ',' + Math.round(c.y));
+        }
+
+        function wrapPointFromEvent(e) {
+            const wrap = document.getElementById('crop-wrap');
+            const rect = wrap.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function clampCrop(c) {
+            const x = clamp(c.x, 0, Math.max(0, state.originalImageW - 10));
+            const y = clamp(c.y, 0, Math.max(0, state.originalImageH - 10));
+            const w = clamp(c.w, 10, state.originalImageW - x);
+            const h = clamp(c.h, 10, state.originalImageH - y);
+            return { x: x, y: y, w: w, h: h };
+        }
+
+        function onCropDragMove(e) {
+            if (!cropDrag) return;
+            const p = wrapPointFromEvent(e);
+            const dxNat = (p.x - cropDrag.startPx.x) / state.cropScale;
+            const dyNat = (p.y - cropDrag.startPx.y) / state.cropScale;
+            const s = cropDrag.startCrop;
+            const c = { x: s.x, y: s.y, w: s.w, h: s.h };
+
+            if (cropDrag.mode === 'move') {
+                c.x = clamp(s.x + dxNat, 0, state.originalImageW - s.w);
+                c.y = clamp(s.y + dyNat, 0, state.originalImageH - s.h);
+            } else {
+                const h = cropDrag.handle;
+                if (h === 'w' || h === 'nw' || h === 'sw') { c.x = s.x + dxNat; c.w = s.w - dxNat; }
+                if (h === 'e' || h === 'ne' || h === 'se') { c.w = s.w + dxNat; }
+                if (h === 'n' || h === 'nw' || h === 'ne') { c.y = s.y + dyNat; c.h = s.h - dyNat; }
+                if (h === 's' || h === 'sw' || h === 'se') { c.h = s.h + dyNat; }
+            }
+            state.crop = clampCrop(c);
+            positionCropRectEl();
+            updateCropInfo();
+        }
+
+        function onCropDragEnd() {
+            cropDrag = null;
+            document.removeEventListener('mousemove', onCropDragMove);
+            document.removeEventListener('mouseup', onCropDragEnd);
+            if (!state.crop) return;
+            document.getElementById('width-px').value = Math.round(state.crop.w);
+            document.getElementById('height-px').value = Math.round(state.crop.h);
+            state.ratio = state.crop.h ? (state.crop.w / state.crop.h) : 1;
+            updateDimsInfo();
+            scheduleLivePreview();
+        }
+
+        document.getElementById('crop-rect').addEventListener('mousedown', function(e) {
+            if (e.button !== 0 || !state.crop) return;
+            const handle = e.target.getAttribute('data-h');
+            e.preventDefault();
+            e.stopPropagation();
+            cropDrag = {
+                mode: handle ? 'resize' : 'move',
+                handle: handle,
+                startPx: wrapPointFromEvent(e),
+                startCrop: { x: state.crop.x, y: state.crop.y, w: state.crop.w, h: state.crop.h },
+            };
+            document.addEventListener('mousemove', onCropDragMove);
+            document.addEventListener('mouseup', onCropDragEnd);
+        });
+
+        document.getElementById('btn-crop-reset').onclick = function() {
+            if (!state.originalImageW || !state.originalImageH) return;
+            state.crop = { x: 0, y: 0, w: state.originalImageW, h: state.originalImageH };
+            positionCropRectEl();
+            updateCropInfo();
+            document.getElementById('width-px').value = state.originalImageW;
+            document.getElementById('height-px').value = state.originalImageH;
+            state.ratio = state.originalImageW / state.originalImageH;
+            updateDimsInfo();
+            scheduleLivePreview();
+        };
 
         document.getElementById('btn-upload').onclick = function() {
             vscode.postMessage({ command: 'editImagePickFile' });
