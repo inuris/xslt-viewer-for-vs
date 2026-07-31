@@ -6,7 +6,7 @@ import { runPythonTransformation, instrumentXslt } from './transformation';
 import { scanImages, handleSaveImage, applyReplaceImage, handleJumpToImage, type ImageInfo } from './images';
 import { pickWorkspaceFile, updateXmlStylesheetLink } from './filePicker';
 import { findAndJump } from './navigation';
-import { getWebviewShell, getReplaceImagePanelHtml, getExportImagePanelHtml, wrapForIframe } from './webview';
+import { getWebviewShell, getEditImagePanelHtml, wrapForIframe } from './webview';
 import { formatXml } from './formatter';
 import { checkDependencies, showSetupForced } from './setup';
 import { registerBase64Preview } from './base64Preview';
@@ -156,10 +156,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
-    let replacePanel: vscode.WebviewPanel | undefined = undefined;
-    let replacePendingInit: { range: ImageInfo['range']; currentImageDataUri: string } | null = null;
-    let exportPanel: vscode.WebviewPanel | undefined = undefined;
-    let exportPendingInit: { base64: string; mime: string; fullMatch: string } | null = null;
+    let editPanel: vscode.WebviewPanel | undefined = undefined;
+    let editPendingInit: { range: ImageInfo['range']; currentImageDataUri: string } | null = null;
     let activeXml: vscode.TextDocument | undefined;
     let activeXslt: vscode.TextDocument | undefined;
     let updateTimeout: NodeJS.Timeout | undefined;
@@ -371,75 +369,36 @@ export function activate(context: vscode.ExtensionContext) {
                     case 'exportPdf':
                         vscode.commands.executeCommand('xslt-viewer.exportPdf');
                         break;
-                    case 'exportImage':
-                        exportPendingInit = {
-                            base64: message.base64 || '',
-                            mime: message.mime || 'image/png',
-                            fullMatch: message.fullMatch || '',
-                        };
-                        if (!exportPanel) {
-                            exportPanel = vscode.window.createWebviewPanel(
-                                'xsltExportImage',
-                                'Export Image',
-                                vscode.ViewColumn.One,
-                                { enableScripts: true }
-                            );
-                            exportPanel.onDidDispose(() => {
-                                exportPanel = undefined;
-                                exportPendingInit = null;
-                            }, null, context.subscriptions);
-                            exportPanel.webview.onDidReceiveMessage(async (msg: { command: string; base64?: string; mime?: string }) => {
-                                if (!exportPanel) return;
-                                if (msg.command === 'exportImageReady' && exportPendingInit) {
-                                    exportPanel.webview.postMessage({
-                                        command: 'init',
-                                        base64: exportPendingInit.base64,
-                                        mime: exportPendingInit.mime,
-                                        fullMatch: exportPendingInit.fullMatch,
-                                    });
-                                    exportPendingInit = null;
-                                }
-                                if (msg.command === 'exportImageSave' && msg.base64 && msg.mime) {
-                                    await handleSaveImage(msg.base64, msg.mime);
-                                }
-                                if (msg.command === 'exportImageClose') {
-                                    exportPanel.dispose();
-                                }
-                            }, undefined, context.subscriptions);
-                        }
-                        exportPanel.webview.html = getExportImagePanelHtml(Date.now());
-                        exportPanel.reveal(vscode.ViewColumn.One);
-                        break;
-                    case 'replaceImage':
-                        replacePendingInit = {
+                    case 'editImage':
+                        editPendingInit = {
                             range: message.range,
                             currentImageDataUri: message.fullMatch || '',
                         };
-                        if (!replacePanel) {
-                            replacePanel = vscode.window.createWebviewPanel(
-                                'xsltReplaceImage',
-                                'Replace Image',
+                        if (!editPanel) {
+                            editPanel = vscode.window.createWebviewPanel(
+                                'xsltEditImage',
+                                'Edit Image',
                                 vscode.ViewColumn.One,
                                 { enableScripts: true }
                             );
-                            replacePanel.onDidDispose(() => {
+                            editPanel.onDidDispose(() => {
                                 if (currentPanel) {
                                     currentPanel.webview.postMessage({ command: 'previewResetImage' });
                                 }
-                                replacePanel = undefined;
-                                replacePendingInit = null;
+                                editPanel = undefined;
+                                editPendingInit = null;
                             }, null, context.subscriptions);
-                            replacePanel.webview.onDidReceiveMessage(async (msg: { command: string; dataUri?: string; oldDataUri?: string; range?: ImageInfo['range'] }) => {
-                                if (!replacePanel) return;
-                                if (msg.command === 'replaceImageReady' && replacePendingInit) {
-                                    replacePanel.webview.postMessage({
+                            editPanel.webview.onDidReceiveMessage(async (msg: { command: string; dataUri?: string; oldDataUri?: string; range?: ImageInfo['range']; base64?: string; mime?: string }) => {
+                                if (!editPanel) return;
+                                if (msg.command === 'editImageReady' && editPendingInit) {
+                                    editPanel.webview.postMessage({
                                         command: 'init',
-                                        range: replacePendingInit.range,
-                                        currentImageDataUri: replacePendingInit.currentImageDataUri,
+                                        range: editPendingInit.range,
+                                        currentImageDataUri: editPendingInit.currentImageDataUri,
                                     });
-                                    replacePendingInit = null;
+                                    editPendingInit = null;
                                 }
-                                if (msg.command === 'replaceImagePickFile') {
+                                if (msg.command === 'editImagePickFile') {
                                     const uris = await vscode.window.showOpenDialog({
                                         filters: { Images: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] },
                                     });
@@ -448,42 +407,45 @@ export function activate(context: vscode.ExtensionContext) {
                                         const b64 = buf.toString('base64');
                                         const ext = path.extname(uris[0].fsPath).toLowerCase();
                                         const mime = ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.gif' ? 'image/gif' : ext === '.svg' ? 'image/svg+xml' : ext === '.webp' ? 'image/webp' : 'image/png';
-                                        replacePanel.webview.postMessage({
-                                            command: 'replaceImageFileData',
+                                        editPanel.webview.postMessage({
+                                            command: 'editImageFileData',
                                             dataUri: `data:${mime};base64,${b64}`,
                                         });
                                     }
                                 }
-                                if (msg.command === 'replaceImagePreview' && msg.dataUri && msg.oldDataUri && currentPanel) {
+                                if (msg.command === 'editImageSave' && msg.base64 && msg.mime) {
+                                    await handleSaveImage(msg.base64, msg.mime);
+                                }
+                                if (msg.command === 'editImagePreview' && msg.dataUri && msg.oldDataUri && currentPanel) {
                                     currentPanel.webview.postMessage({
                                         command: 'previewReplaceImage',
                                         oldDataUri: msg.oldDataUri,
                                         previewDataUri: msg.dataUri,
                                     });
                                 }
-                                if (msg.command === 'replaceImagePreviewReset' && currentPanel) {
+                                if (msg.command === 'editImagePreviewReset' && currentPanel) {
                                     currentPanel.webview.postMessage({ command: 'previewResetImage' });
                                 }
-                                if (msg.command === 'replaceImageApply' && msg.range && msg.dataUri) {
+                                if (msg.command === 'editImageApply' && msg.range && msg.dataUri) {
                                     await applyReplaceImage(msg.range, msg.dataUri);
-                                    replacePanel.dispose();
+                                    editPanel.dispose();
                                     if (currentPanel && activeXml && activeXslt) runUpdate();
                                 }
-                                if (msg.command === 'replaceImageDelete' && msg.range) {
+                                if (msg.command === 'editImageDelete' && msg.range) {
                                     await applyReplaceImage(msg.range, '');
-                                    replacePanel.dispose();
+                                    editPanel.dispose();
                                     if (currentPanel && activeXml && activeXslt) runUpdate();
                                 }
-                                if (msg.command === 'replaceImageCancel') {
+                                if (msg.command === 'editImageCancel') {
                                     if (currentPanel) {
                                         currentPanel.webview.postMessage({ command: 'previewResetImage' });
                                     }
-                                    replacePanel.dispose();
+                                    editPanel.dispose();
                                 }
                             }, undefined, context.subscriptions);
                         }
-                        replacePanel.webview.html = getReplaceImagePanelHtml(Date.now());
-                        replacePanel.reveal(vscode.ViewColumn.One);
+                        editPanel.webview.html = getEditImagePanelHtml(Date.now());
+                        editPanel.reveal(vscode.ViewColumn.One);
                         break;
                     case 'jumpToImage':
                         await handleJumpToImage(message.range);

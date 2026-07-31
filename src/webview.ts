@@ -315,8 +315,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
                         <div class="img-dimensions">—</div>
                     </div>
                     <div class="actions">
-                        <button class="mini-btn" onclick="exportImg(\${i})">💾 Export</button>
-                        <button class="mini-btn" onclick="replaceImg(\${i})">🔄 Replace</button>
+                        <button class="mini-btn" onclick="editImg(\${i})">✏️ Edit</button>
                     </div>
                 </div>
              \`).join('');
@@ -328,14 +327,9 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
              post('jumpToImage', { range: img.range });
         }
 
-        function exportImg(i) {
-            const img = window.currentImages[i];
-            post('exportImage', { base64: img.base64, mime: img.mime, fullMatch: img.fullMatch });
-        }
-        
-        function replaceImg(i) {
+        function editImg(i) {
              const img = window.currentImages[i];
-             post('replaceImage', { range: img.range, fullMatch: img.fullMatch });
+             post('editImage', { range: img.range, base64: img.base64, mime: img.mime, fullMatch: img.fullMatch });
         }
     </script>
 </body>
@@ -343,11 +337,13 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
 }
 
 /**
- * HTML for the Replace Image dialog (Upload / Paste Base64 + Resize, Opacity slider, Hue/Saturation/Brightness).
- * Controls edit the original image when no upload/paste is provided; otherwise they apply to the new image.
+ * HTML for the Edit Image dialog (Upload / Save as / Base64 textarea + Resize, Opacity slider, Hue/Saturation/Brightness).
+ * The Base64 textarea shows the current image's data URI on open; overwriting it (or uploading a file)
+ * sets the new image to apply. Controls edit the original image when no upload/paste is provided;
+ * otherwise they apply to the new image.
  * @param nonce Optional value to force webview reload when opening for a different image (e.g. Date.now()).
  */
-export function getReplaceImagePanelHtml(nonce?: number): string {
+export function getEditImagePanelHtml(nonce?: number): string {
     return `<!DOCTYPE html>
 <html lang="en">
 <!-- ${nonce ?? ''} -->
@@ -381,14 +377,14 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
 </head>
 <body>
     <div class="section">
-        <div class="section-title">Replace image</div>
+        <div class="section-title">Edit image</div>
         <div class="dims-info" id="target-line-info">Line: —</div>
         <div class="row">
             <button type="button" class="btn btn-secondary" id="btn-upload">Upload...</button>
-            <span style="color: var(--vscode-descriptionForeground);">or paste Base64 below</span>
+            <button type="button" class="btn btn-primary" id="btn-save">Save as...</button>
         </div>
         <div class="section">
-            <label for="paste-base64">Paste Base64 image string:</label>
+            <label for="paste-base64">Base64 image string (paste to replace):</label>
             <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
         </div>
     </div>
@@ -446,19 +442,26 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
                 state.currentDataUri = msg.currentImageDataUri || null;
                 const line = (state.range && typeof state.range.startLine === 'number') ? (state.range.startLine + 1) : null;
                 document.getElementById('target-line-info').textContent = line ? ('Line: ' + line) : 'Line: —';
+                document.getElementById('paste-base64').value = state.currentDataUri || '';
                 if (state.currentDataUri) loadOldImageAndFillDims(state.currentDataUri);
             }
-            if (msg.command === 'replaceImageFileData') {
+            if (msg.command === 'editImageFileData') {
+                document.getElementById('paste-base64').value = msg.dataUri;
                 setNewImageOnly(msg.dataUri);
             }
         });
-        vscode.postMessage({ command: 'replaceImageReady' });
+        vscode.postMessage({ command: 'editImageReady' });
 
         function parseImageInput(val) {
             if (!val || !val.trim()) return null;
             val = val.trim();
             if (val.indexOf('data:') === 0) return val;
             return 'data:image/png;base64,' + val.replace(/^data:[^;]+;base64,/, '');
+        }
+
+        function dataUriToParts(dataUri) {
+            const m = /^data:([^;]+);base64,(.*)$/s.exec(dataUri || '');
+            return m ? { mime: m[1], base64: m[2] } : { mime: 'image/png', base64: '' };
         }
 
         function clamp(n, min, max) {
@@ -597,7 +600,7 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
             livePreviewTimer = setTimeout(function() {
                 buildPreviewDataUri(function(dataUri) {
                     vscode.postMessage({
-                        command: 'replaceImagePreview',
+                        command: 'editImagePreview',
                         oldDataUri: state.currentDataUri,
                         dataUri: dataUri,
                     });
@@ -693,7 +696,12 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         }
 
         document.getElementById('btn-upload').onclick = function() {
-            vscode.postMessage({ command: 'replaceImagePickFile' });
+            vscode.postMessage({ command: 'editImagePickFile' });
+        };
+
+        document.getElementById('btn-save').onclick = function() {
+            const parts = dataUriToParts(document.getElementById('paste-base64').value || getActiveSourceUri());
+            vscode.postMessage({ command: 'editImageSave', base64: parts.base64, mime: parts.mime });
         };
 
         document.getElementById('paste-base64').oninput = function() {
@@ -739,79 +747,20 @@ export function getReplaceImagePanelHtml(nonce?: number): string {
         };
 
         document.getElementById('btn-cancel').onclick = function() {
-            vscode.postMessage({ command: 'replaceImagePreviewReset' });
-            vscode.postMessage({ command: 'replaceImageCancel' });
+            vscode.postMessage({ command: 'editImagePreviewReset' });
+            vscode.postMessage({ command: 'editImageCancel' });
         };
 
         document.getElementById('btn-delete').onclick = function() {
             if (!state.range) return;
-            vscode.postMessage({ command: 'replaceImageDelete', range: state.range });
+            vscode.postMessage({ command: 'editImageDelete', range: state.range });
         };
 
         document.getElementById('btn-insert').onclick = function() {
             if (!state.range || !getActiveSourceUri()) return;
             buildPreviewDataUri(function(dataUri) {
-                vscode.postMessage({ command: 'replaceImageApply', dataUri: dataUri, range: state.range });
+                vscode.postMessage({ command: 'editImageApply', dataUri: dataUri, range: state.range });
             });
-        };
-    </script>
-</body>
-</html>`;
-}
-
-/**
- * HTML for the Export Image dialog (Save file + Base64 textarea to copy).
- * @param nonce Optional value to force webview reload when opening for a different image.
- */
-export function getExportImagePanelHtml(nonce?: number): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<!-- ${nonce ?? ''} -->
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body { margin: 16px; font-family: var(--vscode-font-family); background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); font-size: 13px; }
-        .section { margin-bottom: 16px; }
-        .section-title { font-weight: 600; margin-bottom: 8px; }
-        .btn { padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
-        .btn-primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-        .btn-primary:hover { background: var(--vscode-button-hoverBackground); }
-        .btn-secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-        .btn-secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-        .actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
-        textarea { width: 100%; min-height: 120px; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; box-sizing: border-box; font-family: var(--vscode-editor-font-family); font-size: 12px; resize: vertical; }
-        label { display: block; margin-bottom: 6px; }
-    </style>
-</head>
-<body>
-    <div class="section">
-        <div class="section-title">Export image</div>
-        <button type="button" class="btn btn-primary" id="btn-save">Save file...</button>
-    </div>
-    <div class="section">
-        <label for="base64-ta">Base64 (copy to clipboard):</label>
-        <textarea id="base64-ta" readonly></textarea>
-    </div>
-    <div class="actions">
-        <button type="button" class="btn btn-secondary" id="btn-close">Close</button>
-    </div>
-    <script>
-        const vscode = acquireVsCodeApi();
-        var exportState = { base64: '', mime: '' };
-        window.addEventListener('message', function(e) {
-            var msg = e.data;
-            if (msg.command === 'init') {
-                exportState.base64 = msg.base64 || '';
-                exportState.mime = msg.mime || '';
-                document.getElementById('base64-ta').value = msg.fullMatch || ('data:' + (msg.mime || 'image/png') + ';base64,' + (msg.base64 || ''));
-            }
-        });
-        vscode.postMessage({ command: 'exportImageReady' });
-        document.getElementById('btn-save').onclick = function() {
-            vscode.postMessage({ command: 'exportImageSave', base64: exportState.base64, mime: exportState.mime });
-        };
-        document.getElementById('btn-close').onclick = function() {
-            vscode.postMessage({ command: 'exportImageClose' });
         };
     </script>
 </body>
