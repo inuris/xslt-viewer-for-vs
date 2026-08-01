@@ -974,14 +974,9 @@ export function wrapForIframe(content: string): string {
             var lastClickAt = 0;
             // A completed edge-drag ends in a native mouseup that (since the pointer has
             // usually moved off the handle) synthesizes a 'click' on whatever's underneath —
-            // often the outer body/table, which has no data-source-line. Same story when the
-            // native color picker (§10) closes: its dismissal synthesizes a click whose target
-            // is whatever's under the pointer at that moment (often far from the small toolbar
-            // swatch, since the OS/browser color popup renders at arbitrary screen coordinates),
-            // not the color input itself. Left unswallowed, that stray click fell into the
-            // document click handler's "else" branch and deactivated the just-edited element
-            // (typically re-activating <body>, which has no data-source-line). Suppress exactly
-            // one click after either.
+            // often the outer body/table, which has no data-source-line. Left unswallowed,
+            // that stray click fell into the document click handler's "else" branch and
+            // deactivated the just-edited element. Suppress exactly one click after a drag.
             var justDragged = false;
 
             function parsePx(v) {
@@ -1206,14 +1201,9 @@ export function wrapForIframe(content: string): string {
             });
             qtColorInput.addEventListener('change', function(e) {
                 e.stopPropagation();
-                justDragged = true; // the picker closing is about to synthesize a stray click
                 if (!activeEditEl) return;
                 commitGenericStyle('color', qtColorInput.value);
             });
-            // The picker can also close without a 'change' (value unchanged, or dismissed via
-            // Escape) — 'blur' fires whenever focus leaves the input regardless, so use it as
-            // the reliable signal that the popup is gone and a stray click may follow.
-            qtColorInput.addEventListener('blur', function(e) { justDragged = true; });
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
