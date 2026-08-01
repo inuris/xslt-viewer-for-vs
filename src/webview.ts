@@ -75,25 +75,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             border-color: var(--vscode-inputOption-activeBorder, transparent);
         }
         .btn.locked:hover { background-color: var(--vscode-inputOption-activeBackground); }
-        .btn.active {
-            background-color: var(--vscode-inputOption-activeBackground);
-            color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
-            border-color: var(--vscode-inputOption-activeBorder, transparent);
-        }
-        .btn:disabled, .toolbar-color:disabled {
-            opacity: 0.4;
-            cursor: default;
-            pointer-events: none;
-        }
-        .toolbar-color {
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            border: 1px solid var(--vscode-input-border);
-            border-radius: 3px;
-            background: transparent;
-            cursor: pointer;
-        }
 
         .toolbar-zoom {
             background-color: var(--vscode-input-background);
@@ -184,12 +165,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
                 title="Lock preview: keep showing the current XML+XSLT pair even when you open another XML file"
                 aria-pressed="${initialLocked ? 'true' : 'false'}"
                 onclick="toggleLock()">${initialLocked ? '🔒 Locked' : '🔓 Lock'}</button>
-        <button type="button" id="qt-bold-btn" class="btn" disabled
-                title="Bold the selected preview element (click an element in the preview first)"
-                aria-pressed="false" onclick="qtToggleBold()"><b>B</b></button>
-        <input type="color" id="qt-color-input" class="toolbar-color" disabled
-               title="Text color of the selected preview element (click an element in the preview first)"
-               value="#000000" />
         <label for="zoom-select" style="display:flex;align-items:center;gap:6px;font-size:13px;">
             <select id="zoom-select" class="toolbar-zoom" aria-label="Zoom">
                 <option value="25"${safeZoom === 25 ? ' selected' : ''}>25%</option>
@@ -221,8 +196,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         const sidebar = document.getElementById('sidebar');
         const zoomSelect = document.getElementById('zoom-select');
         const lockBtn = document.getElementById('lock-btn');
-        const qtBoldBtn = document.getElementById('qt-bold-btn');
-        const qtColorInput = document.getElementById('qt-color-input');
         let latestHtml = '';
         let previewLocked = ${initialLocked ? 'true' : 'false'};
 
@@ -237,38 +210,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             previewLocked = !previewLocked;
             updateLockBtn();
             post('toggleLock', { locked: previewLocked });
-        }
-
-        // ── Quick-edit controls (Bold + text color) for the active preview element ──
-        // Live as static buttons in this outer, non-scrolling toolbar (same row as
-        // Export PDF / Lock / Zoom) rather than as a floating overlay inside the
-        // iframe -- a floating toolbar tracking the element's position turned out to
-        // fight the iframe's own scroll/focus behavior in ways that kept closing the
-        // native color picker. A fixed toolbar button has no position to lose, so
-        // there's nothing left to race. The iframe still owns "which element is
-        // active" and reports it here via postMessage; these controls just relay the
-        // user's intent back down to the iframe to apply.
-        function setQuickToolbarActive(active, bold, colorHex) {
-            if (!qtBoldBtn || !qtColorInput) return;
-            qtBoldBtn.disabled = !active;
-            qtColorInput.disabled = !active;
-            qtBoldBtn.classList.toggle('active', !!(active && bold));
-            qtBoldBtn.setAttribute('aria-pressed', (active && bold) ? 'true' : 'false');
-            if (active && colorHex) qtColorInput.value = colorHex;
-        }
-        function qtToggleBold() {
-            if (!frame || !frame.contentWindow || qtBoldBtn.disabled) return;
-            frame.contentWindow.postMessage({ command: 'qtToggleBold' }, '*');
-        }
-        if (qtColorInput) {
-            qtColorInput.addEventListener('input', function() {
-                if (!frame || !frame.contentWindow) return;
-                frame.contentWindow.postMessage({ command: 'qtSetColor', mode: 'preview', value: qtColorInput.value }, '*');
-            });
-            qtColorInput.addEventListener('change', function() {
-                if (!frame || !frame.contentWindow) return;
-                frame.contentWindow.postMessage({ command: 'qtSetColor', mode: 'commit', value: qtColorInput.value }, '*');
-            });
         }
 
         function applyZoom() {
@@ -349,9 +290,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             const cmd = event.data && event.data.command;
             if (cmd === 'jumpToCode' || cmd === 'showSetup' || cmd === 'editElementStyle') {
                 vscode.postMessage(event.data);
-            }
-            if (cmd === 'activeElementState') {
-                setQuickToolbarActive(!!event.data.active, !!event.data.bold, event.data.color);
             }
         });
 
@@ -1014,7 +952,12 @@ export function wrapForIframe(content: string): string {
                 '.xslt-edge-handle.horiz{cursor:ew-resize;}' +
                 '.xslt-edge-handle.vert{cursor:ns-resize;}' +
                 '.xslt-edge-handle:hover,.xslt-edge-handle.dragging{background:rgba(171,71,188,0.45);}' +
-                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}';
+                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}' +
+                '.xslt-quick-toolbar{position:fixed;z-index:100000;display:none;align-items:center;gap:3px;padding:4px;background:#2d2d2d;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);}' +
+                '.xslt-qt-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:4px;color:#fff;font:700 13px/1 sans-serif;cursor:pointer;padding:0;}' +
+                '.xslt-qt-btn:hover{background:rgba(255,255,255,0.14);}' +
+                '.xslt-qt-btn.active{background:#0e639c;border-color:#1177bb;}' +
+                '.xslt-qt-color-input{width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:transparent;cursor:pointer;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -1150,6 +1093,7 @@ export function wrapForIframe(content: string): string {
                 var newPx = computeDragPx(e);
                 activeEditEl.style[dragState.prop] = newPx + 'px';
                 positionEdgeHandles();
+                positionQuickToolbar();
                 dragLabel.textContent = (dragState.prop === 'width' ? 'W: ' : 'H: ') + newPx + 'px';
                 dragLabel.style.left = (e.clientX + 14) + 'px';
                 dragLabel.style.top = (e.clientY + 14) + 'px';
@@ -1167,6 +1111,7 @@ export function wrapForIframe(content: string): string {
                 if (handle) handle.classList.remove('dragging');
                 justDragged = true; // swallow the click this mouseup is about to synthesize
                 positionEdgeHandles();
+                positionQuickToolbar();
             }
 
             function endDrag() {
@@ -1178,24 +1123,27 @@ export function wrapForIframe(content: string): string {
             }
 
             // Scroll/resize must only REPOSITION the handles, never hide them.
-            document.addEventListener('scroll', function() { positionEdgeHandles(); }, true);
-            window.addEventListener('resize', function() { positionEdgeHandles(); });
+            document.addEventListener('scroll', function() { positionEdgeHandles(); positionQuickToolbar(); }, true);
+            window.addEventListener('resize', function() { positionEdgeHandles(); positionQuickToolbar(); });
             // ─────────────────────────────────────────────────────────────────────
 
-            // ── Quick-edit (Bold + text color) for the active element. ──────────────
-            // The controls themselves are NOT in this iframe -- they're static buttons
-            // in the outer webview toolbar (same row as Export PDF / Lock / Zoom, see
-            // getWebviewShell). A floating toolbar that tracked the active element's
-            // position, anchored inside this iframe, kept fighting the iframe's own
-            // scroll/focus behavior (the browser auto-scrolling a newly-focused color
-            // input into view would reposition it mid-interaction, and Chromium/
-            // Electron treats that as reason to auto-dismiss the still-open native
-            // color popup) badly enough that no amount of clamping/guarding made it
-            // reliable past the first element. A static outer-toolbar button has no
-            // position to lose, so there's nothing left to race. This iframe still
-            // owns "which element is active" (activeEditEl/activeEditLine) and reports
-            // it to the parent via postMessage; the outer toolbar just relays the
-            // user's intent back down here to actually apply it.
+            // ── Quick-edit toolbar (Word-style): Bold toggle + text color picker for
+            // the active element, floating above (or below, if clipped) its bounds. ──
+            var qtBar = document.createElement('div');
+            qtBar.className = 'xslt-quick-toolbar';
+            var qtBold = document.createElement('button');
+            qtBold.type = 'button';
+            qtBold.className = 'xslt-qt-btn';
+            qtBold.textContent = 'B';
+            qtBold.title = 'Toggle bold';
+            var qtColorInput = document.createElement('input');
+            qtColorInput.type = 'color';
+            qtColorInput.className = 'xslt-qt-color-input';
+            qtColorInput.title = 'Text color';
+            qtBar.appendChild(qtBold);
+            qtBar.appendChild(qtColorInput);
+            document.body.appendChild(qtBar);
+
             function rgbStringToHex(rgbStr) {
                 var m = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(rgbStr || '');
                 if (!m) return '#000000';
@@ -1218,37 +1166,69 @@ export function wrapForIframe(content: string): string {
                     else activeEditEl.style.removeProperty(prop);
                 }
                 window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
-                reportActiveElementState();
+                updateQuickToolbar();
             }
 
-            /** Tell the outer toolbar whether there's an active element, and its current bold/color, so it can enable/reflect itself. */
-            function reportActiveElementState() {
-                if (!activeEditEl) {
-                    window.parent.postMessage({ command: 'activeElementState', active: false }, '*');
-                    return;
-                }
-                window.parent.postMessage({
-                    command: 'activeElementState',
-                    active: true,
-                    bold: isBold(activeEditEl),
-                    color: rgbStringToHex(getComputedStyle(activeEditEl).color),
-                }, '*');
+            function updateQuickToolbar() {
+                if (!activeEditEl) return;
+                qtBold.classList.toggle('active', isBold(activeEditEl));
+                qtColorInput.value = rgbStringToHex(getComputedStyle(activeEditEl).color);
             }
 
-            // Messages FROM the outer toolbar's Bold button / color input.
-            window.addEventListener('message', function(e) {
-                var d = e.data;
-                if (!d || !activeEditEl) return;
-                if (d.command === 'qtToggleBold') {
-                    commitGenericStyle('font-weight', isBold(activeEditEl) ? '' : 'bold');
-                } else if (d.command === 'qtSetColor' && typeof d.value === 'string') {
-                    if (d.mode === 'preview') {
-                        activeEditEl.style.color = d.value; // live preview only, no commit
-                    } else {
-                        commitGenericStyle('color', d.value);
-                    }
-                }
+            function positionQuickToolbar() {
+                if (!activeEditEl) { qtBar.style.display = 'none'; return; }
+                // Never move the toolbar (and its color input) while that input is focused --
+                // its native picker popup, if open, tracks the input's on-screen position and
+                // some Chromium/Electron builds auto-dismiss the popup the moment its anchor
+                // shifts underneath it. A scroll/resize firing mid-pick would otherwise close
+                // it instantly (see the doc's "focus scroll" gotcha for the same lesson learned
+                // the first time, on the old W/H popup).
+                if (document.activeElement === qtColorInput) return;
+                var r = activeEditEl.getBoundingClientRect();
+                qtBar.style.display = 'flex';
+                var barW = qtBar.offsetWidth || 68;
+                var barH = qtBar.offsetHeight || 34;
+                var vw = window.innerWidth || barW + 8;
+                var vh = window.innerHeight || barH + 8;
+                var left = r.left + (r.width / 2) - (barW / 2);
+                var top = r.top - barH - 8;
+                if (top < 4) top = r.bottom + 8;
+                // Clamp fully inside the viewport on both axes so focusing the color input
+                // never itself needs a browser "scroll focused element into view" -- that
+                // auto-scroll is what triggers the dismissal above in the first place.
+                left = Math.max(4, Math.min(left, vw - barW - 4));
+                top = Math.max(4, Math.min(top, vh - barH - 4));
+                qtBar.style.left = left + 'px';
+                qtBar.style.top = top + 'px';
+            }
+
+            function hideQuickToolbar() { qtBar.style.display = 'none'; }
+
+            qtBold.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            qtBold.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (!activeEditEl) return;
+                commitGenericStyle('font-weight', isBold(activeEditEl) ? '' : 'bold');
             });
+            qtColorInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            qtColorInput.addEventListener('click', function(e) { e.stopPropagation(); });
+            qtColorInput.addEventListener('input', function(e) {
+                e.stopPropagation();
+                if (activeEditEl) activeEditEl.style.color = qtColorInput.value;
+            });
+            qtColorInput.addEventListener('change', function(e) {
+                e.stopPropagation();
+                justDragged = true; // the picker closing is about to synthesize a stray click
+                if (!activeEditEl) return;
+                commitGenericStyle('color', qtColorInput.value);
+            });
+            // NOTE: a 'blur' listener was tried here to also cover "closed without a value
+            // change" (Escape, or reopening and closing without picking) — reverted because
+            // 'blur' timing relative to the native popup's open/close isn't reliable across
+            // Chromium/Electron builds and made the *opening* click itself flaky (the flag
+            // could get set — and consumed by an unrelated click — before the real dismissal
+            // happened). 'change' alone covers the common case (user actually picks a color);
+            // dismissing without changing anything can still lose activation.
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
@@ -1257,9 +1237,9 @@ export function wrapForIframe(content: string): string {
                 });
                 previewLineHighlighted = [];
                 hideEdgeHandles();
+                hideQuickToolbar();
                 activeEditEl = null;
                 activeEditLine = null;
-                reportActiveElementState();
             }
 
             /** Shared activation: apply the purple highlight + anchor the edge-drag handles to els[0]. */
@@ -1273,7 +1253,8 @@ export function wrapForIframe(content: string): string {
                 activeEditEl = els[0];
                 activeEditLine = anchorLine;
                 positionEdgeHandles();
-                reportActiveElementState();
+                updateQuickToolbar();
+                positionQuickToolbar();
             }
 
             function highlightPreviewForSourceLine(lineNum) {
