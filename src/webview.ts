@@ -1177,28 +1177,14 @@ export function wrapForIframe(content: string): string {
 
             function positionQuickToolbar() {
                 if (!activeEditEl) { qtBar.style.display = 'none'; return; }
-                // Never move the toolbar (and its color input) while that input is focused --
-                // its native picker popup, if open, tracks the input's on-screen position and
-                // some Chromium/Electron builds auto-dismiss the popup the moment its anchor
-                // shifts underneath it. A scroll/resize firing mid-pick would otherwise close
-                // it instantly (see the doc's "focus scroll" gotcha for the same lesson learned
-                // the first time, on the old W/H popup).
-                if (document.activeElement === qtColorInput) return;
                 var r = activeEditEl.getBoundingClientRect();
                 qtBar.style.display = 'flex';
                 var barW = qtBar.offsetWidth || 68;
                 var barH = qtBar.offsetHeight || 34;
-                var vw = window.innerWidth || barW + 8;
-                var vh = window.innerHeight || barH + 8;
                 var left = r.left + (r.width / 2) - (barW / 2);
                 var top = r.top - barH - 8;
                 if (top < 4) top = r.bottom + 8;
-                // Clamp fully inside the viewport on both axes so focusing the color input
-                // never itself needs a browser "scroll focused element into view" -- that
-                // auto-scroll is what triggers the dismissal above in the first place.
-                left = Math.max(4, Math.min(left, vw - barW - 4));
-                top = Math.max(4, Math.min(top, vh - barH - 4));
-                qtBar.style.left = left + 'px';
+                qtBar.style.left = Math.max(4, left) + 'px';
                 qtBar.style.top = top + 'px';
             }
 
