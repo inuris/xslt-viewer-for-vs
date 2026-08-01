@@ -149,8 +149,9 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         }
         .info { flex: 1; min-width: 0; font-size: 11px; }
         .info div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .actions { display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: flex-start; }
-        .mini-btn { font-size: 10px; padding: 2px 5px; cursor: pointer; border:none; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 2px; text-align: left; }
+        .actions { display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: center; }
+        .icon-btn { font-size: 15px; line-height: 1; width: 26px; height: 26px; padding: 0; cursor: pointer; border: none; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+        .icon-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
     </style>
 </head>
 <body>
@@ -315,7 +316,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
                         <div class="img-dimensions">—</div>
                     </div>
                     <div class="actions">
-                        <button class="mini-btn" onclick="editImg(\${i})">✏️ Edit</button>
+                        <button class="icon-btn" onclick="editImg(\${i})" title="Edit">✏️</button>
                     </div>
                 </div>
              \`).join('');
