@@ -957,9 +957,8 @@ export function wrapForIframe(content: string): string {
                 '.xslt-qt-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:4px;color:#fff;font:700 13px/1 sans-serif;cursor:pointer;padding:0;}' +
                 '.xslt-qt-btn:hover{background:rgba(255,255,255,0.14);}' +
                 '.xslt-qt-btn.active{background:#0e639c;border-color:#1177bb;}' +
-                '.xslt-qt-color-input{-webkit-appearance:none;appearance:none;width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,0.3);border-radius:4px;background:transparent;cursor:pointer;}' +
-                '.xslt-qt-color-input::-webkit-color-swatch-wrapper{padding:2px;}' +
-                '.xslt-qt-color-input::-webkit-color-swatch{border:none;border-radius:2px;}';
+                '.xslt-qt-color-swatch{display:block;width:15px;height:15px;border-radius:3px;border:1px solid rgba(255,255,255,0.5);}' +
+                '.xslt-qt-color-input{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -1133,11 +1132,18 @@ export function wrapForIframe(content: string): string {
             qtBold.className = 'xslt-qt-btn';
             qtBold.textContent = 'B';
             qtBold.title = 'Toggle bold';
+            var qtColorBtn = document.createElement('button');
+            qtColorBtn.type = 'button';
+            qtColorBtn.className = 'xslt-qt-btn';
+            qtColorBtn.title = 'Text color';
+            var qtColorSwatch = document.createElement('span');
+            qtColorSwatch.className = 'xslt-qt-color-swatch';
+            qtColorBtn.appendChild(qtColorSwatch);
             var qtColorInput = document.createElement('input');
             qtColorInput.type = 'color';
             qtColorInput.className = 'xslt-qt-color-input';
-            qtColorInput.title = 'Text color';
             qtBar.appendChild(qtBold);
+            qtBar.appendChild(qtColorBtn);
             qtBar.appendChild(qtColorInput);
             document.body.appendChild(qtBar);
 
@@ -1169,7 +1175,9 @@ export function wrapForIframe(content: string): string {
             function updateQuickToolbar() {
                 if (!activeEditEl) return;
                 qtBold.classList.toggle('active', isBold(activeEditEl));
-                qtColorInput.value = rgbStringToHex(getComputedStyle(activeEditEl).color);
+                var colorStr = getComputedStyle(activeEditEl).color;
+                qtColorSwatch.style.background = colorStr;
+                qtColorInput.value = rgbStringToHex(colorStr);
             }
 
             function positionQuickToolbar() {
@@ -1193,11 +1201,18 @@ export function wrapForIframe(content: string): string {
                 if (!activeEditEl) return;
                 commitGenericStyle('font-weight', isBold(activeEditEl) ? '' : 'bold');
             });
+            qtColorBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            qtColorBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (!activeEditEl) return;
+                qtColorInput.click();
+            });
             qtColorInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
             qtColorInput.addEventListener('click', function(e) { e.stopPropagation(); });
             qtColorInput.addEventListener('input', function(e) {
                 e.stopPropagation();
                 if (activeEditEl) activeEditEl.style.color = qtColorInput.value;
+                qtColorSwatch.style.background = qtColorInput.value;
             });
             qtColorInput.addEventListener('change', function(e) {
                 e.stopPropagation();

@@ -197,7 +197,7 @@ export function activate(context: vscode.ExtensionContext) {
         }, 500);
     };
 
-    const runUpdate = async (forceHighlightLine?: number) => {
+    const runUpdate = async () => {
         if (!currentPanel || !activeXml || !activeXslt) return;
 
         let resultHtml = '';
@@ -228,14 +228,9 @@ export function activate(context: vscode.ExtensionContext) {
             currentDoc = lastSwitchedTo === 'xml' ? activeXml : activeXslt;
         }
 
-        // A style edit committed from the Preview Pane's edge-drag handles or quick-edit
-        // toolbar (§9/§10) always re-activates the line it just edited, regardless of the
-        // cursor-sync setting below — clicking a webview control (not a text editor) can
-        // leave `vscode.window.activeTextEditor` undefined or stale, so that path alone
-        // isn't reliable for "restore what I was just editing".
-        let highlightLine: number | undefined = forceHighlightLine;
         const cfgHl = vscode.workspace.getConfiguration('xslt-viewer');
-        if (highlightLine === undefined && cfgHl.get<boolean>('highlightPreviewOnXsltCursor')) {
+        let highlightLine: number | undefined = undefined;
+        if (cfgHl.get<boolean>('highlightPreviewOnXsltCursor')) {
             const edHl = vscode.window.activeTextEditor;
             if (edHl && activeXslt && edHl.document.uri.toString() === activeXslt.uri.toString()) {
                 highlightLine = edHl.selection.active.line + 1;
@@ -469,7 +464,7 @@ export function activate(context: vscode.ExtensionContext) {
                             // Empty value means "remove the declaration" (W/H slider dragged to 0,
                             // Bold toggled off, or the color swatch reset).
                             const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
-                            if (ok && currentPanel && activeXml && activeXslt) runUpdate(message.line);
+                            if (ok && currentPanel && activeXml && activeXslt) runUpdate();
                         }
                         break;
                 }
