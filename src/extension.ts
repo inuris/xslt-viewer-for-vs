@@ -457,12 +457,10 @@ export function activate(context: vscode.ExtensionContext) {
                         if (
                             activeXslt &&
                             typeof message.line === 'number' &&
-                            (message.prop === 'width' || message.prop === 'height' ||
-                             message.prop === 'font-weight' || message.prop === 'color') &&
+                            (message.prop === 'width' || message.prop === 'height') &&
                             typeof message.value === 'string'
                         ) {
-                            // Empty value means "remove the declaration" (W/H slider dragged to 0,
-                            // Bold toggled off, or the color swatch reset).
+                            // Empty value means "remove the declaration" (W/H slider dragged to 0).
                             const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
                             if (ok && currentPanel && activeXml && activeXslt) runUpdate();
                         }

@@ -14,9 +14,6 @@ import * as vscode from 'vscode';
  */
 const TAG_PATTERN = /<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<((?!\/|xsl:|[?!])[a-zA-Z0-9_:-]+)([^>]*)>/g;
 
-/** CSS properties the Preview Pane's quick-edit affordances can write as an inline style. */
-export type StyleProp = 'width' | 'height' | 'font-weight' | 'color';
-
 interface TagMatch {
     /** Offset of the tag's opening '<'. */
     start: number;
@@ -64,7 +61,7 @@ function splitSelfClose(attrs: string): { body: string; selfClose: string } {
 }
 
 /** Insert or update `prop:value;` inside an attribute string's style="" (adding the attribute if it's missing). */
-function withStyleProp(attrs: string, prop: StyleProp, value: string): string {
+function withStyleProp(attrs: string, prop: 'width' | 'height', value: string): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) {
         return `${attrs} style="${prop}:${value};"`;
@@ -85,7 +82,7 @@ function withStyleProp(attrs: string, prop: StyleProp, value: string): string {
 }
 
 /** Remove `prop`'s declaration from an attribute string's style="" (dropping the whole attribute if it's left empty). */
-function withoutStyleProp(attrs: string, prop: StyleProp): string {
+function withoutStyleProp(attrs: string, prop: 'width' | 'height'): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) return attrs; // nothing to remove
     const quoted = styleMatch[1];
@@ -115,7 +112,7 @@ function withoutStyleProp(attrs: string, prop: StyleProp): string {
 export async function applyInlineStyleEdit(
     doc: vscode.TextDocument,
     line: number,
-    prop: StyleProp,
+    prop: 'width' | 'height',
     value: string
 ): Promise<boolean> {
     const text = doc.getText();

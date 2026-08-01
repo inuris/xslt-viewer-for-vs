@@ -952,13 +952,7 @@ export function wrapForIframe(content: string): string {
                 '.xslt-edge-handle.horiz{cursor:ew-resize;}' +
                 '.xslt-edge-handle.vert{cursor:ns-resize;}' +
                 '.xslt-edge-handle:hover,.xslt-edge-handle.dragging{background:rgba(171,71,188,0.45);}' +
-                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}' +
-                '.xslt-quick-toolbar{position:fixed;z-index:100000;display:none;align-items:center;gap:3px;padding:4px;background:#2d2d2d;border:1px solid rgba(255,255,255,0.15);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);}' +
-                '.xslt-qt-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:4px;color:#fff;font:700 13px/1 sans-serif;cursor:pointer;padding:0;}' +
-                '.xslt-qt-btn:hover{background:rgba(255,255,255,0.14);}' +
-                '.xslt-qt-btn.active{background:#0e639c;border-color:#1177bb;}' +
-                '.xslt-qt-color-swatch{display:block;width:15px;height:15px;border-radius:3px;border:1px solid rgba(255,255,255,0.5);}' +
-                '.xslt-qt-color-input{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;}';
+                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
@@ -1089,7 +1083,6 @@ export function wrapForIframe(content: string): string {
                 var newPx = computeDragPx(e);
                 activeEditEl.style[dragState.prop] = newPx + 'px';
                 positionEdgeHandles();
-                positionQuickToolbar();
                 dragLabel.textContent = (dragState.prop === 'width' ? 'W: ' : 'H: ') + newPx + 'px';
                 dragLabel.style.left = (e.clientX + 14) + 'px';
                 dragLabel.style.top = (e.clientY + 14) + 'px';
@@ -1107,7 +1100,6 @@ export function wrapForIframe(content: string): string {
                 if (handle) handle.classList.remove('dragging');
                 justDragged = true; // swallow the click this mouseup is about to synthesize
                 positionEdgeHandles();
-                positionQuickToolbar();
             }
 
             function endDrag() {
@@ -1119,106 +1111,8 @@ export function wrapForIframe(content: string): string {
             }
 
             // Scroll/resize must only REPOSITION the handles, never hide them.
-            document.addEventListener('scroll', function() { positionEdgeHandles(); positionQuickToolbar(); }, true);
-            window.addEventListener('resize', function() { positionEdgeHandles(); positionQuickToolbar(); });
-            // ─────────────────────────────────────────────────────────────────────
-
-            // ── Quick-edit toolbar (Word-style): Bold toggle + text color picker for
-            // the active element, floating above (or below, if clipped) its bounds. ──
-            var qtBar = document.createElement('div');
-            qtBar.className = 'xslt-quick-toolbar';
-            var qtBold = document.createElement('button');
-            qtBold.type = 'button';
-            qtBold.className = 'xslt-qt-btn';
-            qtBold.textContent = 'B';
-            qtBold.title = 'Toggle bold';
-            var qtColorBtn = document.createElement('button');
-            qtColorBtn.type = 'button';
-            qtColorBtn.className = 'xslt-qt-btn';
-            qtColorBtn.title = 'Text color';
-            var qtColorSwatch = document.createElement('span');
-            qtColorSwatch.className = 'xslt-qt-color-swatch';
-            qtColorBtn.appendChild(qtColorSwatch);
-            var qtColorInput = document.createElement('input');
-            qtColorInput.type = 'color';
-            qtColorInput.className = 'xslt-qt-color-input';
-            qtBar.appendChild(qtBold);
-            qtBar.appendChild(qtColorBtn);
-            qtBar.appendChild(qtColorInput);
-            document.body.appendChild(qtBar);
-
-            function rgbStringToHex(rgbStr) {
-                var m = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(rgbStr || '');
-                if (!m) return '#000000';
-                function h(n) { var s = parseInt(n, 10).toString(16); return s.length === 1 ? '0' + s : s; }
-                return '#' + h(m[1]) + h(m[2]) + h(m[3]);
-            }
-
-            function isBold(el) {
-                var w = getComputedStyle(el).fontWeight;
-                var n = parseInt(w, 10);
-                if (!isNaN(n)) return n >= 600;
-                return w === 'bold' || w === 'bolder';
-            }
-
-            /** Generic commit path for non-px style props (font-weight, color). Empty value removes the declaration. */
-            function commitGenericStyle(prop, value) {
-                if (activeEditLine == null) return;
-                if (activeEditEl) {
-                    if (value) activeEditEl.style.setProperty(prop, value);
-                    else activeEditEl.style.removeProperty(prop);
-                }
-                window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: prop, value: value }, '*');
-                updateQuickToolbar();
-            }
-
-            function updateQuickToolbar() {
-                if (!activeEditEl) return;
-                qtBold.classList.toggle('active', isBold(activeEditEl));
-                var colorStr = getComputedStyle(activeEditEl).color;
-                qtColorSwatch.style.background = colorStr;
-                qtColorInput.value = rgbStringToHex(colorStr);
-            }
-
-            function positionQuickToolbar() {
-                if (!activeEditEl) { qtBar.style.display = 'none'; return; }
-                var r = activeEditEl.getBoundingClientRect();
-                qtBar.style.display = 'flex';
-                var barW = qtBar.offsetWidth || 68;
-                var barH = qtBar.offsetHeight || 34;
-                var left = r.left + (r.width / 2) - (barW / 2);
-                var top = r.top - barH - 8;
-                if (top < 4) top = r.bottom + 8;
-                qtBar.style.left = Math.max(4, left) + 'px';
-                qtBar.style.top = top + 'px';
-            }
-
-            function hideQuickToolbar() { qtBar.style.display = 'none'; }
-
-            qtBold.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-            qtBold.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (!activeEditEl) return;
-                commitGenericStyle('font-weight', isBold(activeEditEl) ? '' : 'bold');
-            });
-            qtColorBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-            qtColorBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (!activeEditEl) return;
-                qtColorInput.click();
-            });
-            qtColorInput.addEventListener('mousedown', function(e) { e.stopPropagation(); });
-            qtColorInput.addEventListener('click', function(e) { e.stopPropagation(); });
-            qtColorInput.addEventListener('input', function(e) {
-                e.stopPropagation();
-                if (activeEditEl) activeEditEl.style.color = qtColorInput.value;
-                qtColorSwatch.style.background = qtColorInput.value;
-            });
-            qtColorInput.addEventListener('change', function(e) {
-                e.stopPropagation();
-                if (!activeEditEl) return;
-                commitGenericStyle('color', qtColorInput.value);
-            });
+            document.addEventListener('scroll', function() { positionEdgeHandles(); }, true);
+            window.addEventListener('resize', function() { positionEdgeHandles(); });
             // ─────────────────────────────────────────────────────────────────────
 
             function clearPreviewLineHighlight() {
@@ -1227,7 +1121,6 @@ export function wrapForIframe(content: string): string {
                 });
                 previewLineHighlighted = [];
                 hideEdgeHandles();
-                hideQuickToolbar();
                 activeEditEl = null;
                 activeEditLine = null;
             }
@@ -1243,8 +1136,6 @@ export function wrapForIframe(content: string): string {
                 activeEditEl = els[0];
                 activeEditLine = anchorLine;
                 positionEdgeHandles();
-                updateQuickToolbar();
-                positionQuickToolbar();
             }
 
             function highlightPreviewForSourceLine(lineNum) {
