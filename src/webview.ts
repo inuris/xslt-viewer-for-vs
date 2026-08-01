@@ -108,7 +108,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         }
 
         #sidebar {
-            width: 250px;
+            width: 190px;
             background-color: var(--vscode-sideBar-background);
             border-left: 1px solid var(--vscode-widget-border);
             display: flex;
@@ -129,27 +129,29 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         #image-list {
             flex: 1;
             overflow-y: auto;
-            padding: 10px;
+            padding: 8px;
         }
 
         .image-item {
             background: var(--vscode-list-hoverBackground);
             border-radius: 4px;
-            padding: 8px;
-            margin-bottom: 8px;
+            padding: 6px;
+            margin-bottom: 6px;
             display: flex;
-            gap: 10px;
+            align-items: center;
+            gap: 6px;
         }
         .thumb {
-            width: 40px; height: 40px;
+            width: 36px; height: 36px;
+            flex-shrink: 0;
             object-fit: contain;
             background: #eee;
             border: 1px solid #ccc;
             cursor: pointer;
         }
-        .info { flex: 1; min-width: 0; font-size: 11px; }
+        .info { flex: 1; min-width: 0; max-width: 84px; font-size: 11px; }
         .info div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .actions { display: flex; flex-direction: column; gap: 4px; justify-content: center; align-items: center; }
+        .actions { flex-shrink: 0; display: flex; align-items: center; }
         .icon-btn { font-size: 15px; line-height: 1; width: 26px; height: 26px; padding: 0; cursor: pointer; border: none; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-radius: 4px; display: flex; align-items: center; justify-content: center; }
         .icon-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
     </style>
