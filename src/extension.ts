@@ -471,24 +471,14 @@ export function activate(context: vscode.ExtensionContext) {
                             const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
                             // applyInlineStyleEdit's editor.edit() fires workspace.onDidChangeTextDocument,
                             // which schedules its own bare (unforced-highlight) runUpdate() ~500ms out via
-                            // triggerAutoUpdate/updateTimeout. Left alone, that later reload clobbers a
+                            // triggerAutoUpdate/updateTimeout. Left alone, that later reload clobbers the
                             // forced-highlight reload below and silently drops the active element again.
-                            // Cancel it -- any reload we do below is already the authoritative one.
+                            // Cancel it -- the runUpdate we're about to do is already the authoritative one.
                             if (updateTimeout) {
                                 clearTimeout(updateTimeout);
                                 updateTimeout = undefined;
                             }
-                            // Only width/height (structural) re-run the full transform + iframe reload.
-                            // font-weight/color are purely cosmetic -- the iframe script already applies
-                            // them live to activeEditEl before this message is even sent, so a re-render
-                            // adds nothing but risk: the async transform round-trip can land while the
-                            // user is already interacting with a *different* element (e.g. opening the
-                            // color picker there), and frame.srcdoc replacing the whole iframe document
-                            // mid-click kills that click's default action and drops activation. Skipping
-                            // the reload here means the persisted source and the live preview simply stay
-                            // in sync silently, with nothing to race.
-                            const needsReload = message.prop === 'width' || message.prop === 'height';
-                            if (ok && needsReload && currentPanel && activeXml && activeXslt) runUpdate(message.line);
+                            if (ok && currentPanel && activeXml && activeXslt) runUpdate(message.line);
                         }
                         break;
                 }
