@@ -330,13 +330,13 @@ function formatCss(css: string, indentSize: number): string {
     return trimAscii(lines.join('\n').replace(/\n{3,}/g, '\n\n'));
 }
 
-/** Format CSS while preserving any inline data:image;base64,... segments (quoted or unquoted). */
+/** Format CSS while preserving any inline data:...;base64,... segments (images, fonts, etc.; quoted or unquoted). */
 function formatCssPreservingDataUris(css: string, indentSize: number): string {
     const originals: string[] = [];
     let transformed = '';
     let i = 0;
     while (i < css.length) {
-        const start = css.indexOf('data:image', i);
+        const start = css.indexOf('data:', i);
         if (start === -1) {
             transformed += css.slice(i);
             break;
