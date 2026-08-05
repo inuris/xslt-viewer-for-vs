@@ -376,6 +376,9 @@ export function getEditImagePanelHtml(nonce?: number): string {
         .actions-spacer { flex: 1; min-width: 8px; }
         .dims-info { margin: 8px 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
         .hidden { display: none !important; }
+        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 14px; }
+        .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 4px; margin-right: 14px; cursor: pointer; color: var(--vscode-descriptionForeground); font-size: 13px; }
+        .tab-btn.active { color: var(--vscode-foreground); border-bottom-color: var(--vscode-button-background); font-weight: 600; }
         .crop-wrap { position: relative; width: 260px; height: 180px; overflow: hidden; background: #1e1e1e; border: 1px solid var(--vscode-input-border); border-radius: 4px; user-select: none; }
         .crop-wrap canvas { position: absolute; top: 0; left: 0; }
         .crop-rect { position: absolute; box-sizing: border-box; border: 1px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); cursor: move; }
@@ -398,65 +401,81 @@ export function getEditImagePanelHtml(nonce?: number): string {
             <button type="button" class="btn btn-secondary" id="btn-upload">Upload...</button>
             <button type="button" class="btn btn-primary" id="btn-save">Save as...</button>
         </div>
+    </div>
+
+    <div class="tabs">
+        <button type="button" class="tab-btn active" id="tab-btn-crop" data-tab="crop">Crop &amp; Resize</button>
+        <button type="button" class="tab-btn" id="tab-btn-advanced" data-tab="advanced">Advanced</button>
+    </div>
+
+    <div id="panel-crop" class="tab-panel">
+        <div id="crop-section" class="section hidden">
+            <div class="section-title">Crop</div>
+            <div class="crop-wrap" id="crop-wrap">
+                <canvas id="crop-canvas" width="260" height="180"></canvas>
+                <div class="crop-rect" id="crop-rect">
+                    <div class="crop-handle" data-h="nw"></div>
+                    <div class="crop-handle" data-h="n"></div>
+                    <div class="crop-handle" data-h="ne"></div>
+                    <div class="crop-handle" data-h="e"></div>
+                    <div class="crop-handle" data-h="se"></div>
+                    <div class="crop-handle" data-h="s"></div>
+                    <div class="crop-handle" data-h="sw"></div>
+                    <div class="crop-handle" data-h="w"></div>
+                </div>
+            </div>
+            <div class="row" style="margin-top:8px">
+                <button type="button" class="btn btn-secondary" id="btn-crop-reset">Reset crop</button>
+                <span class="dims-info" id="crop-info" style="margin:0">Crop: full image</span>
+            </div>
+        </div>
+        <div id="resize-section" class="section hidden">
+            <div class="section-title">Resize</div>
+            <div class="row">
+                <label for="width-px">Width (px):</label>
+                <input type="number" id="width-px" min="1" />
+                <span>×</span>
+                <label for="height-px">Height (px):</label>
+                <input type="number" id="height-px" min="1" />
+            </div>
+            <div class="row">
+                <input type="checkbox" id="maintain-ratio" checked />
+                <label for="maintain-ratio">Maintain aspect ratio</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="panel-advanced" class="tab-panel hidden">
         <div class="section">
             <label for="paste-base64">Base64 image string (paste to replace):</label>
             <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
         </div>
-    </div>
-    <div id="crop-section" class="section hidden">
-        <div class="section-title">Crop</div>
-        <div class="crop-wrap" id="crop-wrap">
-            <canvas id="crop-canvas" width="260" height="180"></canvas>
-            <div class="crop-rect" id="crop-rect">
-                <div class="crop-handle" data-h="nw"></div>
-                <div class="crop-handle" data-h="n"></div>
-                <div class="crop-handle" data-h="ne"></div>
-                <div class="crop-handle" data-h="e"></div>
-                <div class="crop-handle" data-h="se"></div>
-                <div class="crop-handle" data-h="s"></div>
-                <div class="crop-handle" data-h="sw"></div>
-                <div class="crop-handle" data-h="w"></div>
+        <div id="adjust-section" class="section hidden">
+            <div class="slider-row">
+                <label for="opacity-slider">Opacity</label>
+                <input type="range" id="opacity-slider" min="0" max="100" value="100" />
+                <span class="slider-val" id="opacity-val">100</span>
+            </div>
+            <div class="section-title" style="margin-top:12px">Hue / Saturation / Brightness</div>
+            <div class="slider-row">
+                <label for="hue-slider">Hue</label>
+                <input type="range" id="hue-slider" min="-180" max="180" value="0" />
+                <span class="slider-val" id="hue-val">0</span>
+            </div>
+            <div class="slider-row">
+                <label for="sat-slider">Saturation</label>
+                <input type="range" id="sat-slider" min="-100" max="100" value="0" />
+                <span class="slider-val" id="sat-val">0</span>
+            </div>
+            <div class="slider-row">
+                <label for="bri-slider">Brightness</label>
+                <input type="range" id="bri-slider" min="-100" max="100" value="0" />
+                <span class="slider-val" id="bri-val">0</span>
             </div>
         </div>
-        <div class="row" style="margin-top:8px">
-            <button type="button" class="btn btn-secondary" id="btn-crop-reset">Reset crop</button>
-            <span class="dims-info" id="crop-info" style="margin:0">Crop: full image</span>
-        </div>
     </div>
-    <div id="dims-section" class="section hidden">
-        <div class="section-title">Resize</div>
-        <div class="row">
-            <label for="width-px">Width (px):</label>
-            <input type="number" id="width-px" min="1" />
-            <span>×</span>
-            <label for="height-px">Height (px):</label>
-            <input type="number" id="height-px" min="1" />
-        </div>
-        <div class="row">
-            <input type="checkbox" id="maintain-ratio" checked />
-            <label for="maintain-ratio">Maintain aspect ratio</label>
-        </div>
-        <div class="slider-row">
-            <label for="opacity-slider">Opacity</label>
-            <input type="range" id="opacity-slider" min="0" max="100" value="100" />
-            <span class="slider-val" id="opacity-val">100</span>
-        </div>
-        <div class="section-title" style="margin-top:12px">Hue / Saturation / Brightness</div>
-        <div class="slider-row">
-            <label for="hue-slider">Hue</label>
-            <input type="range" id="hue-slider" min="-180" max="180" value="0" />
-            <span class="slider-val" id="hue-val">0</span>
-        </div>
-        <div class="slider-row">
-            <label for="sat-slider">Saturation</label>
-            <input type="range" id="sat-slider" min="-100" max="100" value="0" />
-            <span class="slider-val" id="sat-val">0</span>
-        </div>
-        <div class="slider-row">
-            <label for="bri-slider">Brightness</label>
-            <input type="range" id="bri-slider" min="-100" max="100" value="0" />
-            <span class="slider-val" id="bri-val">0</span>
-        </div>
+
+    <div id="summary-section" class="hidden">
         <div class="dims-info" id="dims-info">Original: — | New: —</div>
     </div>
     <div class="actions">
@@ -488,6 +507,12 @@ export function getEditImagePanelHtml(nonce?: number): string {
             }
         });
         vscode.postMessage({ command: 'editImageReady' });
+
+        function unhideEditControls() {
+            document.getElementById('resize-section').classList.remove('hidden');
+            document.getElementById('adjust-section').classList.remove('hidden');
+            document.getElementById('summary-section').classList.remove('hidden');
+        }
 
         function parseImageInput(val) {
             if (!val || !val.trim()) return null;
@@ -667,7 +692,7 @@ export function getEditImagePanelHtml(nonce?: number): string {
                     state.cropSourceImg = img;
                     initCropForActiveSource();
                 }
-                document.getElementById('dims-section').classList.remove('hidden');
+                unhideEditControls();
                 document.getElementById('width-px').value = state.origW;
                 document.getElementById('height-px').value = state.origH;
                 updateDimsInfo();
@@ -679,7 +704,7 @@ export function getEditImagePanelHtml(nonce?: number): string {
         // Load the NEW image (upload / pasted) and initialize the width/height boxes.
         function setNewImageOnly(dataUri) {
             state.newDataUri = dataUri;
-            document.getElementById('dims-section').classList.remove('hidden');
+            unhideEditControls();
             const img = new Image();
             img.onload = function() {
                 state.originalImageW = img.naturalWidth;
@@ -869,6 +894,16 @@ export function getEditImagePanelHtml(nonce?: number): string {
             updateDimsInfo();
             scheduleLivePreview();
         };
+
+        function switchTab(name) {
+            const isCrop = name === 'crop';
+            document.getElementById('tab-btn-crop').classList.toggle('active', isCrop);
+            document.getElementById('tab-btn-advanced').classList.toggle('active', !isCrop);
+            document.getElementById('panel-crop').classList.toggle('hidden', !isCrop);
+            document.getElementById('panel-advanced').classList.toggle('hidden', isCrop);
+        }
+        document.getElementById('tab-btn-crop').onclick = function() { switchTab('crop'); };
+        document.getElementById('tab-btn-advanced').onclick = function() { switchTab('advanced'); };
 
         document.getElementById('btn-upload').onclick = function() {
             vscode.postMessage({ command: 'editImagePickFile' });
