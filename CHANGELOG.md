@@ -2,6 +2,15 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.34
+
+### Changed
+- **Preview**: Merged the image list's separate Export and Replace buttons into a single Edit dialog. Upload and Save-as sit side by side, and the Base64 field is pre-filled with the current image's data URI — overwrite it (or upload a file) to replace the image, or use Save as to export whatever's in the field.
+- **Preview**: Image list cards are more compact — the Edit action is now an icon-only button, and the card layout no longer leaves dead space between the info column and the action.
+
+### Fixed
+- **Formatter**: Fixed embedded `@font-face` `data:` URIs (e.g. `data:application/font-woff;charset=utf-8;base64,...`) getting corrupted by the CSS formatter, which split the `url(...)` across lines at the semicolons in the MIME type. The data-URI guard now matches any `data:` URI, not just `data:image`.
+
 ## 2.2.33
 
 ### Added
