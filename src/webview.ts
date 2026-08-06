@@ -456,6 +456,7 @@ export function getEditImagePanelHtml(nonce?: number): string {
 
     <div id="panel-advanced" class="tab-panel hidden">
         <div id="adjust-section" class="section hidden">
+            <div class="section-title">Preview</div>
             <div class="adjust-preview-wrap">
                 <img id="adjust-preview" alt="" />
             </div>
