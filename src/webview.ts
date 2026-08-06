@@ -175,7 +175,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
     <div id="toolbar">
         <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
         <div style="flex:1"></div>
-        <button type="button" id="bold-btn" class="btn" title="Toggle bold on the active preview element" aria-pressed="false" onclick="toggleBold()">B</button>
+        <button type="button" id="bold-btn" class="btn" title="Toggle bold on the active preview element" aria-pressed="false" onmousedown="event.preventDefault()" onclick="toggleBold()">B</button>
         <button type="button" id="lock-btn" class="btn${initialLocked ? ' locked' : ''}"
                 title="Lock preview: keep showing the current XML+XSLT pair even when you open another XML file"
                 aria-pressed="${initialLocked ? 'true' : 'false'}"
