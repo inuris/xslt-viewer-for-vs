@@ -55,6 +55,17 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             align-items: center;
             padding: 0 10px;
             gap: 10px;
+            position: relative;
+        }
+
+        #bold-btn {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 700;
+            width: 26px;
+            justify-content: center;
         }
 
         .btn {
@@ -164,6 +175,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
     <div id="toolbar">
         <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
         <div style="flex:1"></div>
+        <button type="button" id="bold-btn" class="btn" title="Toggle bold on the active preview element" aria-pressed="false" onclick="toggleBold()">B</button>
         <button type="button" id="lock-btn" class="btn${initialLocked ? ' locked' : ''}"
                 title="Lock preview: keep showing the current XML+XSLT pair even when you open another XML file"
                 aria-pressed="${initialLocked ? 'true' : 'false'}"
@@ -199,6 +211,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         const sidebar = document.getElementById('sidebar');
         const zoomSelect = document.getElementById('zoom-select');
         const lockBtn = document.getElementById('lock-btn');
+        const boldBtn = document.getElementById('bold-btn');
         let latestHtml = '';
         let previewLocked = ${initialLocked ? 'true' : 'false'};
 
@@ -213,6 +226,12 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             previewLocked = !previewLocked;
             updateLockBtn();
             post('toggleLock', { locked: previewLocked });
+        }
+
+        function toggleBold() {
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.postMessage({ command: 'toggleBold' }, '*');
+            }
         }
 
         function applyZoom() {
@@ -243,6 +262,10 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             if (msg.command === 'update') {
                latestHtml = msg.html || '';
                frame.srcdoc = latestHtml;
+               if (boldBtn) {
+                   boldBtn.classList.remove('locked');
+                   boldBtn.setAttribute('aria-pressed', 'false');
+               }
                renderImages(msg.images);
                applyZoom();
                const pathEl = document.getElementById('path-text');
@@ -293,6 +316,10 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             const cmd = event.data && event.data.command;
             if (cmd === 'jumpToCode' || cmd === 'showSetup' || cmd === 'editElementStyle') {
                 vscode.postMessage(event.data);
+            }
+            if (cmd === 'boldState' && boldBtn) {
+                boldBtn.classList.toggle('locked', !!event.data.bold);
+                boldBtn.setAttribute('aria-pressed', event.data.bold ? 'true' : 'false');
             }
         });
 
@@ -1039,6 +1066,19 @@ export function wrapForIframe(content: string): string {
                 return m ? parseFloat(m[1]) : null;
             }
 
+            /** Whether the given element is currently bold (inline style wins; falls back to computed style). */
+            function computeBold(el) {
+                if (!el) return false;
+                var inline = el.style.fontWeight;
+                if (inline) return inline === '700' || inline === 'bold';
+                var fw = window.getComputedStyle(el).fontWeight;
+                return fw === 'bold' || parseInt(fw, 10) >= 600;
+            }
+
+            function postBoldState() {
+                window.parent.postMessage({ command: 'boldState', bold: computeBold(activeEditEl) }, '*');
+            }
+
             /** Commit path for the edge-drag handles. 0 (or less) removes the declaration instead of writing "0px". */
             function commitStyleValue(prop, line, px) {
                 if (line == null) return;
@@ -1184,6 +1224,7 @@ export function wrapForIframe(content: string): string {
                 hideEdgeHandles();
                 activeEditEl = null;
                 activeEditLine = null;
+                postBoldState();
             }
 
             /** Shared activation: apply the purple highlight + anchor the edge-drag handles to els[0]. */
@@ -1197,6 +1238,7 @@ export function wrapForIframe(content: string): string {
                 activeEditEl = els[0];
                 activeEditLine = anchorLine;
                 positionEdgeHandles();
+                postBoldState();
             }
 
             function highlightPreviewForSourceLine(lineNum) {
@@ -1222,6 +1264,16 @@ export function wrapForIframe(content: string): string {
             }
             window.addEventListener('message', function(e) {
                 var d = e.data;
+                if (d && d.command === 'toggleBold') {
+                    if (!activeEditEl || activeEditLine == null) return;
+                    var isBold = computeBold(activeEditEl);
+                    var newVal = isBold ? '' : '700';
+                    if (newVal) activeEditEl.style.fontWeight = newVal;
+                    else activeEditEl.style.removeProperty('font-weight');
+                    window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: 'font-weight', value: newVal }, '*');
+                    postBoldState();
+                    return;
+                }
                 if (d && d.command === 'highlightSourceLine') {
                     if (d.line == null || d.line === '') {
                         clearPreviewLineHighlight();

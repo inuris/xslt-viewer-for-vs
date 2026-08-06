@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
 /**
- * Locate and patch a literal output tag's inline `style` (width/height) in the XSLT
- * source, driven by the preview's `data-source-line` (see transformation.ts ->
- * instrumentXslt). Used by the Preview Pane's W/H quick-edit icons (webview.ts).
+ * Locate and patch a literal output tag's inline `style` (width/height/font-weight) in
+ * the XSLT source, driven by the preview's `data-source-line` (see transformation.ts ->
+ * instrumentXslt). Used by the Preview Pane's W/H edge-drag and Bold toggle (webview.ts).
  */
 
 /**
@@ -61,7 +61,7 @@ function splitSelfClose(attrs: string): { body: string; selfClose: string } {
 }
 
 /** Insert or update `prop:value;` inside an attribute string's style="" (adding the attribute if it's missing). */
-function withStyleProp(attrs: string, prop: 'width' | 'height', value: string): string {
+function withStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight', value: string): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) {
         return `${attrs} style="${prop}:${value};"`;
@@ -82,7 +82,7 @@ function withStyleProp(attrs: string, prop: 'width' | 'height', value: string): 
 }
 
 /** Remove `prop`'s declaration from an attribute string's style="" (dropping the whole attribute if it's left empty). */
-function withoutStyleProp(attrs: string, prop: 'width' | 'height'): string {
+function withoutStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight'): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) return attrs; // nothing to remove
     const quoted = styleMatch[1];
@@ -112,7 +112,7 @@ function withoutStyleProp(attrs: string, prop: 'width' | 'height'): string {
 export async function applyInlineStyleEdit(
     doc: vscode.TextDocument,
     line: number,
-    prop: 'width' | 'height',
+    prop: 'width' | 'height' | 'font-weight',
     value: string
 ): Promise<boolean> {
     const text = doc.getText();
