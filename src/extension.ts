@@ -166,6 +166,15 @@ export function activate(context: vscode.ExtensionContext) {
     let lastSwitchedTo: 'xml' | 'xslt' | null = null;
     /** When true, opening a different XML file must not auto-switch the preview away from the current pair. */
     let previewLocked = false;
+    /**
+     * Serializes editElementStyle edits (W/H edge-drag, Bold toggle): onDidReceiveMessage
+     * invokes its async callback per-message without waiting for the previous one, so two
+     * edits arriving close together (e.g. a fast double-click on Bold) could otherwise both
+     * read the pre-edit document text and compute offsets against it, then apply the second
+     * one's now-stale Range after the first edit already shifted the line — corrupting the
+     * tag. Chaining through this promise ensures each edit sees the prior edit's result.
+     */
+    let styleEditQueue: Promise<void> = Promise.resolve();
 
     const postHighlightPreviewLine = (line: number | null) => {
         if (!currentPanel?.visible) return;
@@ -460,9 +469,20 @@ export function activate(context: vscode.ExtensionContext) {
                             (message.prop === 'width' || message.prop === 'height' || message.prop === 'font-weight') &&
                             typeof message.value === 'string'
                         ) {
-                            // Empty value means "remove the declaration" (W/H slider dragged to 0, Bold toggled off).
-                            const ok = await applyInlineStyleEdit(activeXslt, message.line, message.prop, message.value);
-                            if (ok && currentPanel && activeXml && activeXslt) runUpdate();
+                            const targetXslt = activeXslt;
+                            const line = message.line;
+                            const prop = message.prop;
+                            const value = message.value;
+                            // Chain onto the queue so a fast second edit (e.g. a double-clicked
+                            // Bold toggle) waits for this one to fully commit before reading the
+                            // document, instead of racing it. See styleEditQueue's declaration.
+                            styleEditQueue = styleEditQueue.then(async () => {
+                                // Empty value means "remove the declaration" (W/H slider dragged to 0, Bold toggled off).
+                                const ok = await applyInlineStyleEdit(targetXslt, line, prop, value);
+                                if (ok && currentPanel && activeXml && activeXslt) runUpdate();
+                            }).catch(err => {
+                                console.error('XSLT Viewer: style edit failed', err);
+                            });
                         }
                         break;
                 }
