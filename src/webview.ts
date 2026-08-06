@@ -376,9 +376,17 @@ export function getEditImagePanelHtml(nonce?: number): string {
         .actions-spacer { flex: 1; min-width: 8px; }
         .dims-info { margin: 8px 0; font-size: 12px; color: var(--vscode-descriptionForeground); }
         .hidden { display: none !important; }
-        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--vscode-widget-border); margin-bottom: 14px; }
-        .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 6px 4px; margin-right: 14px; cursor: pointer; color: var(--vscode-descriptionForeground); font-size: 13px; }
-        .tab-btn.active { color: var(--vscode-foreground); border-bottom-color: var(--vscode-button-background); font-weight: 600; }
+        .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+        .tab-btn { display: flex; align-items: center; gap: 6px; background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border); border-radius: 6px; padding: 6px 12px; cursor: pointer; color: var(--vscode-descriptionForeground); font-size: 13px; }
+        .tab-btn:hover { background: var(--vscode-toolbar-hoverBackground); }
+        .tab-btn.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: var(--vscode-button-background); font-weight: 600; }
+        .adjust-preview-wrap {
+            width: 260px; height: 180px; border: 1px solid var(--vscode-input-border); border-radius: 4px;
+            background-image: linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%);
+            background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0px; background-color: #444;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .adjust-preview-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .crop-wrap { position: relative; width: 260px; height: 180px; overflow: hidden; background: #1e1e1e; border: 1px solid var(--vscode-input-border); border-radius: 4px; user-select: none; }
         .crop-wrap canvas { position: absolute; top: 0; left: 0; }
         .crop-rect { position: absolute; box-sizing: border-box; border: 1px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); cursor: move; }
@@ -398,14 +406,15 @@ export function getEditImagePanelHtml(nonce?: number): string {
         <div class="section-title">Edit image</div>
         <div class="dims-info" id="target-line-info">Line: —</div>
         <div class="row">
-            <button type="button" class="btn btn-secondary" id="btn-upload">Upload...</button>
+            <button type="button" class="btn btn-secondary" id="btn-upload">Replace...</button>
             <button type="button" class="btn btn-primary" id="btn-save">Save as...</button>
         </div>
     </div>
 
     <div class="tabs">
-        <button type="button" class="tab-btn active" id="tab-btn-crop" data-tab="crop">Crop &amp; Resize</button>
-        <button type="button" class="tab-btn" id="tab-btn-advanced" data-tab="advanced">Advanced</button>
+        <button type="button" class="tab-btn active" id="tab-btn-crop" data-tab="crop">✂️ Crop &amp; Resize</button>
+        <button type="button" class="tab-btn" id="tab-btn-advanced" data-tab="advanced">🎨 Opacity &amp; Color</button>
+        <button type="button" class="tab-btn" id="tab-btn-base64" data-tab="base64">📋 Base64</button>
     </div>
 
     <div id="panel-crop" class="tab-panel">
@@ -446,12 +455,11 @@ export function getEditImagePanelHtml(nonce?: number): string {
     </div>
 
     <div id="panel-advanced" class="tab-panel hidden">
-        <div class="section">
-            <label for="paste-base64">Base64 image string (paste to replace):</label>
-            <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
-        </div>
         <div id="adjust-section" class="section hidden">
-            <div class="slider-row">
+            <div class="adjust-preview-wrap">
+                <img id="adjust-preview" alt="" />
+            </div>
+            <div class="slider-row" style="margin-top:12px">
                 <label for="opacity-slider">Opacity</label>
                 <input type="range" id="opacity-slider" min="0" max="100" value="100" />
                 <span class="slider-val" id="opacity-val">100</span>
@@ -472,6 +480,13 @@ export function getEditImagePanelHtml(nonce?: number): string {
                 <input type="range" id="bri-slider" min="-100" max="100" value="0" />
                 <span class="slider-val" id="bri-val">0</span>
             </div>
+        </div>
+    </div>
+
+    <div id="panel-base64" class="tab-panel hidden">
+        <div class="section">
+            <label for="paste-base64">Base64 image string (paste to replace):</label>
+            <textarea id="paste-base64" placeholder="Paste data:image/...;base64,... or raw base64"></textarea>
         </div>
     </div>
 
@@ -512,6 +527,7 @@ export function getEditImagePanelHtml(nonce?: number): string {
             document.getElementById('resize-section').classList.remove('hidden');
             document.getElementById('adjust-section').classList.remove('hidden');
             document.getElementById('summary-section').classList.remove('hidden');
+            updateAdjustPreview(getActiveSourceUri());
         }
 
         function parseImageInput(val) {
@@ -661,6 +677,11 @@ export function getEditImagePanelHtml(nonce?: number): string {
             onDone(sourceUri);
         }
 
+        function updateAdjustPreview(dataUri) {
+            const el = document.getElementById('adjust-preview');
+            if (el && dataUri) el.src = dataUri;
+        }
+
         function scheduleLivePreview() {
             if (!state.currentDataUri || !getActiveSourceUri()) return;
             if (livePreviewTimer) {
@@ -668,6 +689,7 @@ export function getEditImagePanelHtml(nonce?: number): string {
             }
             livePreviewTimer = setTimeout(function() {
                 buildPreviewDataUri(function(dataUri) {
+                    updateAdjustPreview(dataUri);
                     vscode.postMessage({
                         command: 'editImagePreview',
                         oldDataUri: state.currentDataUri,
@@ -896,14 +918,14 @@ export function getEditImagePanelHtml(nonce?: number): string {
         };
 
         function switchTab(name) {
-            const isCrop = name === 'crop';
-            document.getElementById('tab-btn-crop').classList.toggle('active', isCrop);
-            document.getElementById('tab-btn-advanced').classList.toggle('active', !isCrop);
-            document.getElementById('panel-crop').classList.toggle('hidden', !isCrop);
-            document.getElementById('panel-advanced').classList.toggle('hidden', isCrop);
+            ['crop', 'advanced', 'base64'].forEach(function(t) {
+                document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+                document.getElementById('panel-' + t).classList.toggle('hidden', t !== name);
+            });
         }
         document.getElementById('tab-btn-crop').onclick = function() { switchTab('crop'); };
         document.getElementById('tab-btn-advanced').onclick = function() { switchTab('advanced'); };
+        document.getElementById('tab-btn-base64').onclick = function() { switchTab('base64'); };
 
         document.getElementById('btn-upload').onclick = function() {
             vscode.postMessage({ command: 'editImagePickFile' });
