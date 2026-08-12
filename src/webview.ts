@@ -371,7 +371,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         
         window.addEventListener('message', event => {
             const cmd = event.data && event.data.command;
-            if (cmd === 'jumpToCode' || cmd === 'showSetup' || cmd === 'editElementStyle' || cmd === 'editElementText') {
+            if (cmd === 'jumpToCode' || cmd === 'showSetup' || cmd === 'editElementStyle') {
                 vscode.postMessage(event.data);
             }
             if (cmd === 'activeStyleState') {
@@ -1104,51 +1104,12 @@ export function wrapForIframe(content: string): string {
                 '.xslt-edge-handle.horiz{cursor:ew-resize;}' +
                 '.xslt-edge-handle.vert{cursor:ns-resize;}' +
                 '.xslt-edge-handle:hover,.xslt-edge-handle.dragging{background:rgba(171,71,188,0.45);}' +
-                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}' +
-                '[contenteditable="true"]{outline:2px dashed #AB47BC!important;outline-offset:1px;cursor:text;}';
+                '#xslt-drag-label{position:fixed;z-index:100001;display:none;padding:2px 6px;background:rgba(0,0,0,0.85);color:#fff;font:600 11px sans-serif;border-radius:3px;pointer-events:none;white-space:nowrap;}';
             if (document.head) document.head.appendChild(hlStyle);
             var previewLineHighlighted = [];
 
             var activeEditEl = null;   // the exact element the edge handles are anchored to
             var activeEditLine = null; // its data-source-line (maps 1:1 to the XSLT source tag)
-            var editingEl = null;        // element currently in contenteditable text-edit mode, if any
-            var editingOriginalText = ''; // its text before editing, to detect no-op edits and support Escape-to-revert
-
-            /** Enter inline text-edit mode on a leaf element (double-click target). Only elements
-             * with no child elements are offered — this is a client-side hint only; the extension
-             * authoritatively re-checks the XSLT source before committing (see editElementText),
-             * rejecting anything that turns out to be xsl:value-of/nested-markup-generated. */
-            function enterTextEditMode(el) {
-                if (editingEl || !el || el.children.length > 0) return;
-                editingEl = el;
-                editingOriginalText = el.textContent;
-                el.setAttribute('contenteditable', 'true');
-                el.focus();
-                try {
-                    var range = document.createRange();
-                    range.selectNodeContents(el);
-                    var sel = window.getSelection();
-                    sel.removeAllRanges();
-                    sel.addRange(range);
-                } catch (err) {}
-            }
-
-            function exitTextEditMode(commit) {
-                if (!editingEl) return;
-                var el = editingEl;
-                var newText = el.textContent;
-                el.removeAttribute('contenteditable');
-                editingEl = null;
-                if (commit && newText !== editingOriginalText) {
-                    var lineAttr = el.getAttribute('data-source-line');
-                    var line = lineAttr ? parseInt(lineAttr, 10) : null;
-                    if (line != null) {
-                        window.parent.postMessage({ command: 'editElementText', line: line, text: newText }, '*');
-                    }
-                } else if (!commit) {
-                    el.textContent = editingOriginalText;
-                }
-            }
             // A click already activates the exact clicked element synchronously (see the
             // document click handler below). The extension still echoes back a
             // 'highlightSourceLine' message once the editor cursor move round-trips — ignore
@@ -1480,12 +1441,6 @@ export function wrapForIframe(content: string): string {
                 clearHover();
             });
             document.addEventListener('click', (e) => {
-                if (editingEl) {
-                    // Let native contenteditable click-to-position-cursor behavior happen
-                    // undisturbed instead of re-activating/re-jumping on every click inside
-                    // the text being edited.
-                    return;
-                }
                 e.stopPropagation();
                 if (justDragged) {
                     // This click is the tail end of an edge-drag mouseup, not a real
@@ -1512,28 +1467,6 @@ export function wrapForIframe(content: string): string {
                         className: t.className,
                         id: t.id
                      }, '*');
-                }
-            });
-            document.addEventListener('dblclick', (e) => {
-                const target = e.target.closest('[data-source-line]');
-                if (!target || target.children.length > 0) return;
-                e.stopPropagation();
-                e.preventDefault();
-                enterTextEditMode(target);
-            });
-            document.addEventListener('keydown', (e) => {
-                if (!editingEl) return;
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    exitTextEditMode(true);
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    exitTextEditMode(false);
-                }
-            });
-            document.addEventListener('focusout', (e) => {
-                if (editingEl && e.target === editingEl) {
-                    exitTextEditMode(true);
                 }
             });
         })();

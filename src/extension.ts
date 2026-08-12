@@ -10,7 +10,7 @@ import { getWebviewShell, getEditImagePanelHtml, wrapForIframe } from './webview
 import { formatXml } from './formatter';
 import { checkDependencies, showSetupForced } from './setup';
 import { registerBase64Preview } from './base64Preview';
-import { applyInlineStyleEdit, applyInlineTextEdit } from './styleEdit';
+import { applyInlineStyleEdit } from './styleEdit';
 
 // ─── Transformation error helpers ────────────────────────────────────────────
 
@@ -167,8 +167,7 @@ export function activate(context: vscode.ExtensionContext) {
     /** When true, opening a different XML file must not auto-switch the preview away from the current pair. */
     let previewLocked = false;
     /**
-     * Serializes editElementStyle/editElementText edits (W/H edge-drag, Bold/Color toggles,
-     * double-click text edit): onDidReceiveMessage
+     * Serializes editElementStyle edits (W/H edge-drag, Bold toggle): onDidReceiveMessage
      * invokes its async callback per-message without waiting for the previous one, so two
      * edits arriving close together (e.g. a fast double-click on Bold) could otherwise both
      * read the pre-edit document text and compute offsets against it, then apply the second
@@ -483,21 +482,6 @@ export function activate(context: vscode.ExtensionContext) {
                                 if (ok && currentPanel && activeXml && activeXslt) runUpdate();
                             }).catch(err => {
                                 console.error('XSLT Viewer: style edit failed', err);
-                            });
-                        }
-                        break;
-                    case 'editElementText':
-                        if (activeXslt && typeof message.line === 'number' && typeof message.text === 'string') {
-                            const targetXslt = activeXslt;
-                            const line = message.line;
-                            const newText = message.text;
-                            // Same queue as editElementStyle — keeps text edits from racing a
-                            // concurrent style edit (or another text edit) on the same document.
-                            styleEditQueue = styleEditQueue.then(async () => {
-                                const ok = await applyInlineTextEdit(targetXslt, line, newText);
-                                if (ok && currentPanel && activeXml && activeXslt) runUpdate();
-                            }).catch(err => {
-                                console.error('XSLT Viewer: text edit failed', err);
                             });
                         }
                         break;
