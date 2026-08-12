@@ -466,7 +466,7 @@ export function activate(context: vscode.ExtensionContext) {
                         if (
                             activeXslt &&
                             typeof message.line === 'number' &&
-                            (message.prop === 'width' || message.prop === 'height' || message.prop === 'font-weight') &&
+                            (message.prop === 'width' || message.prop === 'height' || message.prop === 'font-weight' || message.prop === 'color') &&
                             typeof message.value === 'string'
                         ) {
                             const targetXslt = activeXslt;

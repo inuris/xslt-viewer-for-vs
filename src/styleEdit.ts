@@ -61,7 +61,7 @@ function splitSelfClose(attrs: string): { body: string; selfClose: string } {
 }
 
 /** Insert or update `prop:value;` inside an attribute string's style="" (adding the attribute if it's missing). */
-function withStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight', value: string): string {
+function withStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight' | 'color', value: string): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) {
         return `${attrs} style="${prop}:${value};"`;
@@ -82,7 +82,7 @@ function withStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight', 
 }
 
 /** Remove `prop`'s declaration from an attribute string's style="" (dropping the whole attribute if it's left empty). */
-function withoutStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight'): string {
+function withoutStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight' | 'color'): string {
     const styleMatch = attrs.match(/\sstyle\s*=\s*("[^"]*"|'[^']*')/);
     if (!styleMatch) return attrs; // nothing to remove
     const quoted = styleMatch[1];
@@ -112,7 +112,7 @@ function withoutStyleProp(attrs: string, prop: 'width' | 'height' | 'font-weight
 export async function applyInlineStyleEdit(
     doc: vscode.TextDocument,
     line: number,
-    prop: 'width' | 'height' | 'font-weight',
+    prop: 'width' | 'height' | 'font-weight' | 'color',
     value: string
 ): Promise<boolean> {
     const text = doc.getText();
