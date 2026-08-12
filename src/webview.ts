@@ -1113,14 +1113,6 @@ export function wrapForIframe(content: string): string {
             var activeEditLine = null; // its data-source-line (maps 1:1 to the XSLT source tag)
             var editingEl = null;        // element currently in contenteditable text-edit mode, if any
             var editingOriginalText = ''; // its text before editing, to detect no-op edits and support Escape-to-revert
-            // jumpToCode moves the actual VS Code editor cursor (findAndJump -> showTextDocument
-            // without preserveFocus), stealing keyboard focus out of the webview. A dblclick fires
-            // two 'click' events before 'dblclick', so sending jumpToCode synchronously on every
-            // click was yanking focus away right as enterTextEditMode tried to focus the
-            // contenteditable element — it'd blur again almost instantly (focusout -> commit,
-            // reverting to the plain active-highlight look) before a caret ever appeared.
-            // Defer jumpToCode briefly so a following dblclick can cancel it first.
-            var pendingJumpToCode = null;
 
             /** Enter inline text-edit mode on a leaf element (double-click target). Only elements
              * with no child elements are offered — this is a client-side hint only; the extension
@@ -1502,43 +1494,29 @@ export function wrapForIframe(content: string): string {
                     return;
                 }
                 const target = e.target.closest('[data-source-line]');
-                // Activate the EXACT clicked element right away — don't wait on the
-                // editor round-trip, and don't re-derive it by line number later (that
-                // querySelectorAll-by-line can land on a parent sharing the same line).
-                // This part is instant regardless of single- vs double-click.
                 if (target) {
                     const line = target.getAttribute('data-source-line');
+                    // Activate the EXACT clicked element right away — don't wait on the
+                    // editor round-trip, and don't re-derive it by line number later (that
+                    // querySelectorAll-by-line can land on a parent sharing the same line).
                     lastClickLine = line;
                     lastClickAt = Date.now();
                     activateElements([target], parseInt(line, 10));
+                    window.parent.postMessage({ command: 'jumpToCode', line: line }, '*');
                 } else {
-                    clearPreviewLineHighlight();
+                     clearPreviewLineHighlight();
+                     const t = e.target;
+                     window.parent.postMessage({
+                        command: 'jumpToCode',
+                        tag: t.tagName.toLowerCase(),
+                        className: t.className,
+                        id: t.id
+                     }, '*');
                 }
-                if (pendingJumpToCode) clearTimeout(pendingJumpToCode);
-                pendingJumpToCode = setTimeout(function() {
-                    pendingJumpToCode = null;
-                    if (target) {
-                        window.parent.postMessage({ command: 'jumpToCode', line: target.getAttribute('data-source-line') }, '*');
-                    } else {
-                        const t = e.target;
-                        window.parent.postMessage({
-                            command: 'jumpToCode',
-                            tag: t.tagName.toLowerCase(),
-                            className: t.className,
-                            id: t.id
-                        }, '*');
-                    }
-                }, 350);
             });
             document.addEventListener('dblclick', (e) => {
                 const target = e.target.closest('[data-source-line]');
                 if (!target || target.children.length > 0) return;
-                if (pendingJumpToCode) {
-                    // Cancel the single-click's deferred jumpToCode — it would steal editor
-                    // focus right as we're about to focus the contenteditable element.
-                    clearTimeout(pendingJumpToCode);
-                    pendingJumpToCode = null;
-                }
                 e.stopPropagation();
                 e.preventDefault();
                 enterTextEditMode(target);
