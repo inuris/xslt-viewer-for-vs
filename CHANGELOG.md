@@ -2,6 +2,15 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.35
+
+### Added
+- **Preview**: New Bold (B) and Text Color (A) buttons in the preview toolbar, centered next to the Lock/Zoom controls. They act on whichever element you last clicked in the preview: B toggles `font-weight:700` inline; A opens a native color picker (preset to the element's current color) and writes the chosen color to the element's inline style. Both persist to the XSLT source the same way the existing width/height edge-drag resize does, and both reflect the active element's current state (A's own letter shows the element's current text color, with a contrasting backdrop so it stays legible in any theme).
+- **Edit Image dialog**: Reorganized into tabs — "Crop & Resize" (Upload/Save as, Crop, Resize; open by default, matching the most common edit flow), "Opacity & Color" (Opacity/Hue/Saturation/Brightness, with a live-updating preview thumbnail), and "Base64" (paste-to-replace field, split out since it's rarely used).
+
+### Fixed
+- **Preview**: Fixed a rare race where two style edits (width/height edge-drag or the new Bold toggle) landing close together could both read the document before either committed, causing the second edit to apply against stale offsets and corrupt the tag. Edits are now serialized.
+
 ## 2.2.34
 
 ### Changed
