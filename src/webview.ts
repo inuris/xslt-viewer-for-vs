@@ -70,6 +70,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             font-weight: 700;
             width: 26px;
             justify-content: center;
+            border-color: var(--vscode-widget-border);
         }
         #color-input {
             position: absolute;
