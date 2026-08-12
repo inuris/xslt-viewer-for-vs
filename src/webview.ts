@@ -70,7 +70,6 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             font-weight: 700;
             width: 26px;
             justify-content: center;
-            border-color: var(--vscode-widget-border);
         }
         #color-input {
             position: absolute;
@@ -100,6 +99,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             border-color: var(--vscode-inputOption-activeBorder, transparent);
         }
         .btn.locked:hover { background-color: var(--vscode-inputOption-activeBackground); }
+        .format-btn { border-color: var(--vscode-widget-border); }
 
         .toolbar-zoom {
             background-color: var(--vscode-input-background);
@@ -255,6 +255,13 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             }
         }
 
+        function hexLuminance(hex) {
+            var r = parseInt(hex.slice(1, 3), 16) / 255;
+            var g = parseInt(hex.slice(3, 5), 16) / 255;
+            var b = parseInt(hex.slice(5, 7), 16) / 255;
+            return 0.299 * r + 0.587 * g + 0.114 * b;
+        }
+
         function openColorPicker() {
             if (!colorInput) return;
             colorInput.value = lastActiveColorHex;
@@ -302,6 +309,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
                }
                if (colorBtn) {
                    colorBtn.style.color = '';
+                   colorBtn.style.backgroundColor = '';
                }
                renderImages(msg.images);
                applyZoom();
@@ -362,6 +370,7 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
                 if (colorBtn && event.data.colorHex) {
                     lastActiveColorHex = event.data.colorHex;
                     colorBtn.style.color = event.data.colorHex;
+                    colorBtn.style.backgroundColor = hexLuminance(event.data.colorHex) > 0.5 ? '#1e1e1e' : '#f3f3f3';
                 }
             }
         });
