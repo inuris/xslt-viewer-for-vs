@@ -73,6 +73,9 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         }
         #color-input {
             position: absolute;
+            left: 30px;
+            top: 100%;
+            margin-top: 4px;
             width: 0;
             height: 0;
             opacity: 0;
