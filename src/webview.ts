@@ -1104,7 +1104,7 @@ export function wrapForIframe(content: string): string {
 
             function parsePx(v) {
                 if (!v) return null;
-                var m = String(v).trim().match(/^(-?\d+(?:\.\d+)?)px$/);
+                var m = String(v).trim().match(/^(-?\\d+(?:\\.\\d+)?)px$/);
                 return m ? parseFloat(m[1]) : null;
             }
 
@@ -1124,7 +1124,7 @@ export function wrapForIframe(content: string): string {
             }
 
             function rgbStringToHex(rgbStr) {
-                var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(rgbStr || '');
+                var m = /rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/.exec(rgbStr || '');
                 if (!m) return '#000000';
                 function h(n) { var s = parseInt(n, 10).toString(16); return s.length === 1 ? '0' + s : s; }
                 return '#' + h(m[1]) + h(m[2]) + h(m[3]);
