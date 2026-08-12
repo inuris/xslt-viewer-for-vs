@@ -268,7 +268,16 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
             colorInput.click();
         }
         if (colorInput) {
+            // 'input' fires continuously while dragging inside the native picker's swatch/hue
+            // area - just live-mutate the preview DOM (no source-file write, no reload) so
+            // dragging feels responsive without hammering the extension. 'change' fires once,
+            // when the color is finalized - that's the single point we persist to source.
             colorInput.addEventListener('input', function() {
+                if (frame && frame.contentWindow) {
+                    frame.contentWindow.postMessage({ command: 'previewColor', color: colorInput.value }, '*');
+                }
+            });
+            colorInput.addEventListener('change', function() {
                 if (frame && frame.contentWindow) {
                     frame.contentWindow.postMessage({ command: 'setColor', color: colorInput.value }, '*');
                 }
@@ -1340,6 +1349,15 @@ export function wrapForIframe(content: string): string {
                     if (newVal) activeEditEl.style.fontWeight = newVal;
                     else activeEditEl.style.removeProperty('font-weight');
                     window.parent.postMessage({ command: 'editElementStyle', line: activeEditLine, prop: 'font-weight', value: newVal }, '*');
+                    postFormatState();
+                    return;
+                }
+                if (d && d.command === 'previewColor') {
+                    // Live-only: mutate the DOM + button swatch for instant feedback while
+                    // dragging in the native picker, but don't touch the source file or
+                    // trigger a reload - see setColor for the actual commit.
+                    if (!activeEditEl || !d.color) return;
+                    activeEditEl.style.color = d.color;
                     postFormatState();
                     return;
                 }
