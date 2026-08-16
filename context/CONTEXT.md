@@ -1,8 +1,11 @@
-<!-- context-sync: a40eb41c948e4273b2d22a075e57f07bf8e6364f | 2026-07-31 -->
+<!-- context-sync: 09140ef2a4e3c08184282a38485969d2f7f54dcc | 2026-08-16 -->
 
 # XSLT Viewer for VS Code — Context
 
 ## Recent Changes
+- 2026-08-12: Attempted double-click-to-edit-text for literal text blocks in the preview (contenteditable, with jumpToCode's focus-stealing deferred so dblclick could win); shipped, then fully reverted (2 commits) after focus-handling issues resurfaced. **Not in the current codebase** — see §8 gotcha before retrying this.
+- 2026-08-01: Preview toolbar Bold (B) / Text Color (A) buttons act on the last-clicked element, writing `font-weight`/`color` inline via the same style-edit path as W/H resize; Edit Image dialog reorganized into Crop & Resize / Opacity & Color / Base64 tabs — released as **2.2.35**.
+- 2026-07-31: Merged the image list's separate Export/Replace buttons into a single Edit dialog (`getEditImagePanelHtml`); fixed the CSS formatter corrupting embedded non-image `data:` URIs (e.g. `data:application/font-woff`) — released as **2.2.34**.
 - 2026-07-29: Preview Pane: Lock toggle (stop auto-switch when opening another XML), hover tooltip now shows a CSS-style selector, and a Photoshop-style edge-drag to resize an active element's width/height (replaced an earlier W/H badge+slider design that was scrapped) — released as **2.2.33**.
 - 2026-07-20: Added "Convert Number to Vietnamese Words" XSLT snippet — **2.2.32**.
 - 2026-07-16: Fixed `instrumentXslt()` corrupting XML comments containing a `<word`-like sequence (caused misleading libxslt structural errors); transform errors now report precise line/column diagnostics — **2.2.31**.
@@ -13,7 +16,7 @@
 ---
 
 ## 1. Project Snapshot
-**XSLT Viewer** is a VS Code extension (published on the VS Code Marketplace and Open VSX as `inuris.xslt-viewer-vs`) that live-previews an XML file transformed through an XSLT stylesheet in a side panel, with click-to-jump navigation between the rendered output and the XSLT source, an embedded-image manager, and an XML/XSLT formatter. It's a port of an earlier "XSLT Viewer Cloud" web app (Flask + custom VFS/Monaco) onto VS Code's native editor/filesystem, keeping the same Python/`lxml` transformation backend. Stack: TypeScript (extension host, `src/*.ts`), Python + `lxml` (the actual XSLT transform, `resources/python/transform.py`), HTML/CSS/vanilla JS (the webview preview panel, generated as template strings from `src/webview.ts`). Current maturity: **actively published, in active feature development** (current version `2.2.33`, ~30+ prior published patch releases).
+**XSLT Viewer** is a VS Code extension (published on the VS Code Marketplace and Open VSX as `inuris.xslt-viewer-vs`) that live-previews an XML file transformed through an XSLT stylesheet in a side panel, with click-to-jump navigation between the rendered output and the XSLT source, an embedded-image manager, and an XML/XSLT formatter. It's a port of an earlier "XSLT Viewer Cloud" web app (Flask + custom VFS/Monaco) onto VS Code's native editor/filesystem, keeping the same Python/`lxml` transformation backend. Stack: TypeScript (extension host, `src/*.ts`), Python + `lxml` (the actual XSLT transform, `resources/python/transform.py`), HTML/CSS/vanilla JS (the webview preview panel, generated as template strings from `src/webview.ts`). Current maturity: **actively published, in active feature development** (current version `2.2.35`, ~30+ prior published patch releases).
 
 ## 2. Architecture
 Single-process VS Code extension, no build step beyond `tsc`. Everything lives in `extension.ts`'s `activate()` closure and a handful of focused modules it delegates to.
@@ -48,9 +51,9 @@ A second, independent flow is the **document formatter** (`formatter.ts`): a pur
 | Path | Purpose |
 |---|---|
 | `src/extension.ts` | `activate()` — wires every command, the webview panel, and all event listeners. Holds the extension's mutable state (`activeXml`, `activeXslt`, `currentPanel`, `previewLocked`, etc.) as closures. |
-| `src/webview.ts` | All webview HTML as template strings: `getWebviewShell()` (toolbar/path-bar/iframe shell), `wrapForIframe()` (click-to-jump + hover tooltip + edge-drag-resize script injected into the *rendered preview* iframe), plus the Replace-Image/Export-Image dialog panels. |
+| `src/webview.ts` | All webview HTML as template strings: `getWebviewShell()` (toolbar/path-bar/iframe shell, incl. Bold/Color toolbar buttons), `wrapForIframe()` (click-to-jump + hover tooltip + edge-drag-resize + Bold/Color toggle script injected into the *rendered preview* iframe), and `getEditImagePanelHtml()` (the tabbed Crop & Resize / Opacity & Color / Base64 Edit Image dialog — replaced the old separate Export/Replace panels). |
 | `src/transformation.ts` | `runPythonTransformation()` (spawns the Python backend) and `instrumentXslt()` (injects `data-source-line`). |
-| `src/styleEdit.ts` | `applyInlineStyleEdit()` — locates the XSLT output tag at a given `data-source-line` and adds/updates/removes its inline `style` width/height. Backs the edge-drag resize feature. |
+| `src/styleEdit.ts` | `applyInlineStyleEdit()` — locates the XSLT output tag at a given `data-source-line` and adds/updates/removes an inline `style` declaration (`width`/`height`/`font-weight`/`color`). Backs the edge-drag resize and Bold/Color toolbar features; edits are serialized to avoid a race where two near-simultaneous edits both read stale document offsets. |
 | `src/images.ts` | Base64 image scan/export/replace/jump for the preview's image sidebar. |
 | `src/navigation.ts` | `findAndJump()` — opens the XSLT doc and reveals a line/id/class match. |
 | `src/filePicker.ts` | XML↔XSLT pairing helpers (`pickWorkspaceFile`, `updateXmlStylesheetLink`). |
@@ -72,7 +75,9 @@ A second, independent flow is the **document formatter** (`formatter.ts`): a pur
 | Preview Lock toggle (stop auto re-pairing on file open) | Done | `extension.ts` (`previewLocked`), toolbar in `webview.ts` |
 | Hover tooltip: CSS selector + `W × H` dimensions | Done | `webview.ts` (`wrapForIframe`) |
 | W/H edge-drag resize (Photoshop-style border drag) | Done | `webview.ts`, `styleEdit.ts` |
-| Embedded image manager (scan/export/replace, resize/opacity/HSB) | Done | `images.ts`, `webview.ts` |
+| Bold (B) / Text Color (A) toolbar buttons — act on last-clicked preview element | Done | `webview.ts` (`toggleBold`, `openColorPicker`), `styleEdit.ts` |
+| Double-click-to-edit-text (inline contenteditable on literal text blocks) | **Reverted** — shipped 2026-08-12, fully rolled back same day over unresolved focus-stealing with click-to-jump; not in current code | n/a |
+| Embedded image manager: scan + single tabbed Edit dialog (Crop & Resize / Opacity & Color / Base64) | Done | `images.ts`, `webview.ts` (`getEditImagePanelHtml`) |
 | XML/XSLT formatter | Done | `formatter.ts` + `formatter-rules.md` |
 | XSLT snippet insertion | Done | `extension.ts`, `resources/snippets/` |
 | PDF export | Done | `extension.ts` (`exportPdf` command) |
@@ -117,8 +122,9 @@ No CI pipeline in this repo; publishing is manual/local.
 - **Multiple output tags on the same XSLT source line share one `data-source-line`.** Click-driven preview activation keeps a direct reference to the exact clicked DOM element specifically to avoid this ambiguity; a purely line-number-driven lookup (e.g. the reverse cursor→preview highlight, which only has a line number to go on) can land on the first match in document order (usually the outer/parent tag) instead of the intended inner one.
 - **`instrumentXslt()` must never treat text inside XML comments or CDATA as tags** — a comment containing a `<word`-like sequence previously corrupted the comment terminator and cascaded into confusing libxslt structural errors (fixed in 2.2.31, but the regex-based instrumentation approach means any future change to the tag-matching pattern needs to re-verify comment/CDATA skipping).
 - Never write real publish tokens (`VSCODE_MARKETPLACE_TOKEN`, `OVSX_PAT`) or git push tokens into any tracked file — `publish-env.bat` is gitignored for exactly this reason. If a real token is ever pasted into a chat/file upload, treat it as compromised and recommend rotating it even after the immediate task is done.
+- **Double-click-to-edit-text was attempted (2026-08-12) and reverted twice.** Every preview click fires both element-activation (highlight/edge handles) and `jumpToCode` (moves VS Code editor focus via `showTextDocument`, no `preserveFocus`) synchronously. A `dblclick` fires two `click`s first, so by the time a contenteditable edit-mode handler called `el.focus()`, `jumpToCode` had already yanked keyboard focus into the real editor — the contenteditable blurred almost instantly (visible as "flash dotted purple, back to solid purple, no caret"). A fix that deferred `jumpToCode` ~350ms (canceling it if a second click arrived) was tried and still didn't stick; the whole feature was reverted rather than kept half-working. Anyone retrying inline text editing needs a real solution to the focus race first, not just a longer defer.
 
 ## 9. Open TODOs / Next Steps
-- Actually publish **2.2.33** — `CHANGELOG.md`/`package.json` are already synced and the VSIX builds clean; just needs `publish-app.bat` run locally, or the built `.vsix` uploaded manually to both marketplace portals.
-- Rotate/revoke the VS Marketplace + Open VSX tokens that were shared via file upload during the 2.2.33 release attempt, once publishing is confirmed done.
+- Actually publish **2.2.35** — `CHANGELOG.md`/`package.json` are already synced and the VSIX builds clean; just needs `publish-app.bat` run locally, or the built `.vsix` uploaded manually to both marketplace portals. (2.2.33/2.2.34 did ship since, so publishing itself is a well-worn path — this is just the latest pending release.)
 - Consider adding an actual test suite, or removing the dead `test`/`pretest` scripts from `package.json` if none is planned.
+- If inline text editing in the preview is revisited, resolve the click-vs-jumpToCode focus race properly first (see §8) rather than re-attempting the deferred-jump approach that was already tried and abandoned.
