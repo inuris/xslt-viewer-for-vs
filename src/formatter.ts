@@ -258,10 +258,14 @@ function formatCss(css: string, indentSize: number): string {
         const c2 = css.substr(i, 2);
 
         if (inString) {
-            line += c;
-            if (c === '\\' && i + 1 < n) { line += css[++i]; i++; }
-            else if (c === inString) inString = '';
-            i++;
+            if (c === '\\' && i + 1 < n) {
+                line += c + css[i + 1];
+                i += 2;
+            } else {
+                line += c;
+                if (c === inString) inString = '';
+                i++;
+            }
             continue;
         }
         if (inComment) {

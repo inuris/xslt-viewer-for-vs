@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.36
+
+### Fixed
+- **Formatter**: Fixed the CSS formatter dropping the character immediately after any backslash-escape inside a string (e.g. `content: "\2713";` became `content: "\213";`), caused by a double index-advance when copying the escaped character. Escapes like Unicode content codes (`\2713`), escaped quotes, and escaped backslashes now round-trip unchanged.
+
 ## 2.2.35
 
 ### Added
