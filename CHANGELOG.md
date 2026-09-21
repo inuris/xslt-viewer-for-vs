@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.37
+
+### Fixed
+- **Preview**: Fixed the preview panel losing its Lock state and going blank when it lost and regained UI visibility (e.g. switching to another XML file) — VS Code discards a webview's JS/DOM state on hide by default. `retainContextWhenHidden` is now set on the panel so the Lock toggle and rendered preview survive.
+
 ## 2.2.36
 
 ### Fixed

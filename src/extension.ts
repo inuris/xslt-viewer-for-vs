@@ -339,7 +339,7 @@ export function activate(context: vscode.ExtensionContext) {
                 'xsltPreview',
                 'XSLT Preview',
                 vscode.ViewColumn.Two,
-                { enableScripts: true }
+                { enableScripts: true, retainContextWhenHidden: true }
             );
 
             // Read only the **user** (Global) value for previewZoom, ignoring any workspace override.
