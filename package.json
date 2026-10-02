@@ -8,7 +8,7 @@
   },
   "description": "Live XSLT preview, formatter, and image manager",
   "icon": "icon.png",
-  "version": "2.2.37",
+  "version": "2.2.38",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -29,6 +29,7 @@
     "onCommand:xslt-viewer.preview",
     "onCommand:xslt-viewer.switchFile",
     "onCommand:xslt-viewer.exportPdf",
+    "onCommand:xslt-viewer.exportPdfPrint",
     "onCommand:xslt-viewer.showSetup",
     "onCommand:xslt-viewer.showSnippets",
     "onLanguage:xml",
@@ -49,7 +50,12 @@
       },
       {
         "command": "xslt-viewer.exportPdf",
-        "title": "Export Preview to PDF",
+        "title": "Open Preview as HTML",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "xslt-viewer.exportPdfPrint",
+        "title": "Print Preview to PDF (A4)",
         "icon": "$(file-pdf)"
       },
       {

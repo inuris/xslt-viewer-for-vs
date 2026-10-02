@@ -32,6 +32,21 @@ function escForHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Add a default A4 `@page` size (only if the rendered HTML doesn't already declare one — an
+ * XSLT's own `@page` rule always wins) and a script that opens the browser's native print
+ * dialog on load. Used by the PDF test button: the browser's own print dialog (Save as PDF)
+ * is already how this extension's print sizing/margins are tuned, this just triggers it automatically.
+ */
+function injectPrintOnLoad(html: string): string {
+    const autoPrintScript = '<script>window.addEventListener("load", function () { setTimeout(function () { window.print(); }, 50); });</script>';
+    const a4Style = /@page\b/i.test(html) ? '' : '<style>@page { size: A4; margin: 15mm; }</style>';
+    const injection = a4Style + autoPrintScript;
+    if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, injection + '</body>');
+    if (/<\/html>/i.test(html)) return html.replace(/<\/html>/i, injection + '</html>');
+    return html + injection;
+}
+
 // ─── XSLT Snippets (Markdown .md file) ───────────────────────────────────────
 
 interface XsltSnippetEntry {
@@ -378,6 +393,9 @@ export function activate(context: vscode.ExtensionContext) {
                     case 'exportPdf':
                         vscode.commands.executeCommand('xslt-viewer.exportPdf');
                         break;
+                    case 'exportPdfPrint':
+                        vscode.commands.executeCommand('xslt-viewer.exportPdfPrint');
+                        break;
                     case 'editImage':
                         editPendingInit = {
                             range: message.range,
@@ -630,6 +648,29 @@ export function activate(context: vscode.ExtensionContext) {
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : String(e);
                 vscode.window.showErrorMessage('Failed to export: ' + msg);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('xslt-viewer.exportPdfPrint', async () => {
+            if (!activeXml || !activeXslt) {
+                vscode.window.showErrorMessage('No active transformation.');
+                return;
+            }
+            try {
+                const resultHtml = await runPythonTransformation(
+                    context,
+                    activeXml.getText(),
+                    activeXslt.getText()
+                );
+                const printableHtml = injectPrintOnLoad(resultHtml);
+                const tempFile = path.join(os.tmpdir(), `xslt_print_${Date.now()}.html`);
+                fs.writeFileSync(tempFile, printableHtml, 'utf-8');
+                await vscode.env.openExternal(vscode.Uri.file(tempFile));
+            } catch (e: unknown) {
+                const msg = e instanceof Error ? e.message : String(e);
+                vscode.window.showErrorMessage('Failed to open print preview: ' + msg);
             }
         })
     );

@@ -2,6 +2,14 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.38
+
+### Changed
+- **Preview**: Renamed the "Export PDF" toolbar button to "HTML" (👁️) — it always rendered to HTML and opened it in your browser, never an actual PDF, so the label now matches the behavior.
+
+### Added
+- **Preview**: New "PDF" (🖨️) button next to it — renders the same HTML and opens it in your browser with the print dialog triggered automatically, defaulting the page size to A4 (unless the XSLT output already sets its own `@page` rule). Use the dialog's own "Save as PDF" to get a file; this keeps the existing browser-print workflow's margin/size controls while giving a one-click way to test PDF output.
+
 ## 2.2.37
 
 ### Fixed

@@ -190,7 +190,8 @@ export function getWebviewShell(initialZoom: number = 100, initialLocked: boolea
         <button type="button" id="switch-file-btn" class="path-bar-btn" title="Switch to XSLT or XML" onclick="post('switchFile')">XSLT</button>
     </div>
     <div id="toolbar">
-        <button class="btn" onclick="post('exportPdf')">📄 Export PDF</button>
+        <button type="button" id="html-btn" class="btn" title="Render to HTML and open it in your browser" onclick="post('exportPdf')">👁️ HTML</button>
+        <button type="button" id="pdf-btn" class="btn" title="Render to HTML and open your browser's print dialog (pre-set to A4) — use Save as PDF to export" onclick="post('exportPdfPrint')">🖨️ PDF</button>
         <div style="flex:1"></div>
         <div id="format-btn-group">
             <button type="button" id="bold-btn" class="btn format-btn" title="Toggle bold on the active preview element" aria-pressed="false" onmousedown="event.preventDefault()" onclick="toggleBold()">B</button>
