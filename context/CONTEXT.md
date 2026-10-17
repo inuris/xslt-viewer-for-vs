@@ -104,7 +104,7 @@ npm run vsix:local      # compile + npx vsce package → local .vsix for manual 
 Requires **Python 3 + `lxml`** on the machine running the extension (`pip install lxml`) — `xslt-viewer.pythonPath` setting controls the interpreter used; `install.bat` automates first-time setup on Windows (`npm install` + `npm run compile` + `pip install lxml`).
 
 **Release** (`publish-app.bat`, Windows batch, run locally — not from this cloud sandbox, see §8):
-1. Add a `## x.y.z` entry at the top of `CHANGELOG.md`.
+1. Add a `## x.y.z` entry at the top of `CHANGELOG.md`. Entries are one plain line per change (e.g. `**Snippets**: Added "Reset STT by TChat" snippet.`), with no code or implementation detail.
 2. Run `publish-app.bat` — it syncs `package.json`'s version to that heading, then runs `vsce publish` (VS Code Marketplace) and `ovsx publish` (Open VSX).
 3. Needs a local `publish-env.bat` (gitignored, **never commit it**) setting `VSCODE_MARKETPLACE_TOKEN` and `OVSX_PAT` — copy the pattern from the script's own header comment, do not paste real tokens into chat/commits.
 

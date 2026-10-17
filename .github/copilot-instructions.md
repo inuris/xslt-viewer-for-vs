@@ -30,7 +30,7 @@ When you add, change, or remove **any feature, function, or command** in this co
 
 3. **Update `CHANGELOG.md`**
    - Add a short bullet under the next version (increment the last number from the latest entry, e.g. `2.2.1` → `2.2.2`) under `### Added`, `### Changed`, or `### Fixed` as appropriate.
-   - Keep entries brief (one line).
+   - Keep entries brief: one plain line per change, saying what changed for the user (e.g. `**Snippets**: Added "Reset STT by TChat" snippet.`). No code, XPath, file names or implementation detail.
 
 4. **Keep instructions concise**
    - Prefer updating existing instructions over creating many small ones.
