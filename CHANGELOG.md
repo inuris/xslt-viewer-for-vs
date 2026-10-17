@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.40
+
+### Changed
+- **Preview**: Hover box now shows color, font, background, padding, margin and border like Chrome's Inspect.
+
 ## 2.2.39
 
 ### Added

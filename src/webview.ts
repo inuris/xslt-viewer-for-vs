@@ -1391,30 +1391,92 @@ export function wrapForIframe(content: string): string {
             var hoveredEl = null, hoveredParent = null;
             var tip = document.createElement('div');
             tip.id = 'xslt-dimensions-tooltip';
-            tip.style.cssText = 'position:fixed;z-index:99999;padding:4px 8px;background:rgba(0,0,0,0.85);color:#fff;font-size:12px;font-family:sans-serif;border-radius:4px;pointer-events:none;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);display:none;';
-            var tipSelector = document.createElement('div');
-            tipSelector.style.cssText = 'font-weight:600;margin-bottom:2px;';
-            var tipDims = document.createElement('div');
-            tip.appendChild(tipSelector);
-            tip.appendChild(tipDims);
+            tip.style.cssText = 'position:fixed;z-index:99999;padding:8px 10px;background:#fff;color:#303942;font-size:12px;font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5;border-radius:4px;pointer-events:none;min-width:200px;max-width:320px;box-shadow:0 1px 6px rgba(0,0,0,0.35);display:none;';
+            var tipHead = document.createElement('div');
+            tipHead.style.cssText = 'display:flex;justify-content:space-between;gap:16px;margin-bottom:4px;white-space:nowrap;';
+            var tipSelector = document.createElement('span');
+            tipSelector.style.cssText = 'font-weight:600;color:#881280;overflow:hidden;text-overflow:ellipsis;';
+            var tipDims = document.createElement('span');
+            tipDims.style.cssText = 'color:#5f6368;';
+            tipHead.appendChild(tipSelector);
+            tipHead.appendChild(tipDims);
+            var tipRows = document.createElement('div');
+            tip.appendChild(tipHead);
+            tip.appendChild(tipRows);
             document.body.appendChild(tip);
             function buildSelector(el) {
                 var tag = el.tagName ? el.tagName.toLowerCase() : '';
                 if (el.id) return tag + '#' + el.id;
                 if (el.className && typeof el.className === 'string' && el.className.trim()) {
-                    var first = el.className.trim().split(/\s+/)[0];
+                    var first = el.className.trim().split(/ +/)[0];
                     if (first) return tag + '.' + first;
                 }
                 return tag;
             }
+            // rgb()/rgba() → #RRGGBB, or #RRGGBBAA when partly transparent (as Chrome's Inspect shows it).
+            function parseColor(c) {
+                var m = c && c.match(/rgba?[(]([^)]*)[)]/);
+                if (!m) return null;
+                var p = m[1].split(',').map(function(x) { return parseFloat(x); });
+                var a = p.length > 3 ? p[3] : 1;
+                function hx(n) { var h = Math.round(n).toString(16).toUpperCase(); return h.length < 2 ? '0' + h : h; }
+                var hex = '#' + hx(p[0]) + hx(p[1]) + hx(p[2]) + (a < 1 ? hx(a * 255) : '');
+                return { hex: hex, alpha: a, css: c };
+            }
+            function round2(n) { return Math.round(n * 100) / 100; }
+            function boxShorthand(cs, prop) {
+                var v = ['top', 'right', 'bottom', 'left'].map(function(side) { return cs.getPropertyValue(prop + '-' + side); });
+                if (v[0] === v[1] && v[1] === v[2] && v[2] === v[3]) return v[0];
+                if (v[0] === v[2] && v[1] === v[3]) return v[0] + ' ' + v[1];
+                if (v[1] === v[3]) return v[0] + ' ' + v[1] + ' ' + v[2];
+                return v.join(' ');
+            }
+            function addRow(label, value, swatchColor) {
+                var row = document.createElement('div');
+                row.style.cssText = 'display:flex;justify-content:space-between;gap:16px;white-space:nowrap;';
+                var l = document.createElement('span');
+                l.style.cssText = 'color:#5f6368;flex:none;';
+                l.textContent = label;
+                var v = document.createElement('span');
+                v.style.cssText = 'overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;min-width:0;';
+                if (swatchColor) {
+                    var sw = document.createElement('span');
+                    sw.style.cssText = 'flex:none;width:10px;height:10px;border:1px solid #9aa0a6;background:' + swatchColor + ';';
+                    v.appendChild(sw);
+                }
+                var t = document.createElement('span');
+                t.style.cssText = 'overflow:hidden;text-overflow:ellipsis;';
+                t.textContent = value;
+                v.appendChild(t);
+                row.appendChild(l);
+                row.appendChild(v);
+                tipRows.appendChild(row);
+            }
             function showTip(el) {
-                tipSelector.textContent = buildSelector(el);
-                tipDims.textContent = el.offsetWidth + ' × ' + el.offsetHeight;
-                tip.style.display = 'block';
                 var r = el.getBoundingClientRect();
+                var cs = window.getComputedStyle(el);
+                tipSelector.textContent = buildSelector(el);
+                tipDims.textContent = round2(r.width) + ' × ' + round2(r.height);
+                tipRows.textContent = '';
+                var color = parseColor(cs.color);
+                if (color) addRow('Color', color.hex, color.css);
+                addRow('Font', cs.fontSize + ' ' + cs.fontFamily + (cs.fontWeight !== '400' ? ' (' + cs.fontWeight + ')' : ''));
+                var bg = parseColor(cs.backgroundColor);
+                if (bg && bg.alpha > 0) addRow('Background', bg.hex, bg.css);
+                var pad = boxShorthand(cs, 'padding');
+                if (pad !== '0px') addRow('Padding', pad);
+                var mar = boxShorthand(cs, 'margin');
+                if (mar !== '0px') addRow('Margin', mar);
+                if (cs.borderTopStyle !== 'none' && cs.borderTopWidth !== '0px') {
+                    var bc = parseColor(cs.borderTopColor);
+                    addRow('Border', cs.borderTopWidth + ' ' + cs.borderTopStyle + (bc ? ' ' + bc.hex : ''), bc ? bc.css : '');
+                }
+                if (cs.textAlign && cs.textAlign !== 'start') addRow('Text align', cs.textAlign);
+                tip.style.display = 'block';
                 var topVal = r.top - tip.offsetHeight - 4;
                 if (topVal < 8) topVal = r.bottom + 4;
-                tip.style.left = Math.max(4, r.left + (r.width / 2) - (tip.offsetWidth / 2)) + 'px';
+                var maxLeft = window.innerWidth - tip.offsetWidth - 4;
+                tip.style.left = Math.max(4, Math.min(maxLeft, r.left + (r.width / 2) - (tip.offsetWidth / 2))) + 'px';
                 tip.style.top = topVal + 'px';
             }
             function hideTip() { tip.style.display = 'none'; }
