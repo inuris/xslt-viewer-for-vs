@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.39
+
+### Added
+- **Snippets**: Added "Reset STT by TChat" snippet (below "Update STT by TChat"). It hides STT for `TChat = 4`, keeps the `Remark` display fallback, and numbers rows with `count(preceding-sibling::HHDVu[TChat != '4']) + 1`, so the count restarts within each group of sibling rows.
+
 ## 2.2.38
 
 ### Changed

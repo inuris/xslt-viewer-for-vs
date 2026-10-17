@@ -96,6 +96,28 @@ Add XML condition to hide STT when TChat = 4 (Ghi chu)
 
 ---
 
+## Reset STT by TChat
+Add XML condition to hide STT when TChat = 4 (Ghi chu); STT counts only preceding sibling HHDVu, so it restarts in each group
+
+```xml
+<xsl:choose>
+    <xsl:when test="TChat != 4">
+        <xsl:choose>
+            <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu = '.'">&#160;</xsl:when>
+            <xsl:when test="TTKhac/TTin[TTruong='Remark']/DLieu != ''">
+                <xsl:value-of select="TTKhac/TTin[TTruong='Remark']/DLieu" />
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:value-of select="count(preceding-sibling::HHDVu[TChat != '4']) + 1"/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:when>
+    <xsl:otherwise>&#160;</xsl:otherwise>
+</xsl:choose>
+```
+
+---
+
 ## Line break by delimiter
 Add line break by custom delimiter like `;`
 
