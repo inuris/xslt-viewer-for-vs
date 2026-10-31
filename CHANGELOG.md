@@ -2,6 +2,12 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.42
+
+### Fixed
+- **Setup**: When the saved Python path no longer exists, XSLT Viewer now falls back to the Python on your PATH and tells you, instead of saying Python is missing.
+- **Setup**: The lxml install command now installs into the same Python that XSLT Viewer uses.
+
 ## 2.2.41
 
 ### Fixed

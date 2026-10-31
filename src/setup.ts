@@ -49,9 +49,11 @@ interface DetectResult {
     pythonOutput: string;
     lxmlProbe: string;    // label for log: "python -c import lxml"
     lxmlOutput: string;
+    /** Set when the configured path failed and an auto-detected interpreter is used instead. */
+    fallbackFrom?: { path: string; output: string };
 }
 
-/** Interpreter found by auto-detection when the user has not set xslt-viewer.pythonPath. */
+/** Interpreter chosen by the last check: the configured path, or an auto-detected one. */
 let detectedPythonPath: string | undefined;
 
 /** True when the user explicitly configured xslt-viewer.pythonPath (any scope). */
@@ -71,7 +73,6 @@ function configuredPythonPath(): string {
  * plain `python` usually doesn't exist), falling back to `python`.
  */
 export function getPythonPath(): string {
-    if (isPythonPathExplicit()) return configuredPythonPath();
     return detectedPythonPath ?? configuredPythonPath();
 }
 
@@ -115,28 +116,38 @@ async function detectAt(pythonPath: string, pyResult: ProbeResult): Promise<Dete
     };
 }
 
-async function detectDeps(): Promise<DetectResult> {
-    if (isPythonPathExplicit()) {
-        const p = configuredPythonPath();
-        return detectAt(p, await probePython(p));
-    }
-
-    // Auto mode: prefer the first candidate that has lxml, else the first Python 3 found.
+async function autoDetect(): Promise<DetectResult> {
+    // Prefer the first candidate that has lxml, else the first Python 3 found.
     let firstPython: DetectResult | undefined;
     let firstFailure: DetectResult | undefined;
     for (const candidate of autoCandidates()) {
-        const py = await probePython(candidate);
-        const result = await detectAt(candidate, py);
-        if (result.hasPython && result.hasLxml) {
-            detectedPythonPath = candidate;
-            return result;
-        }
+        const result = await detectAt(candidate, await probePython(candidate));
+        if (result.hasPython && result.hasLxml) return result;
         if (result.hasPython && !firstPython) firstPython = result;
         if (!firstFailure) firstFailure = result;
     }
-    const best = firstPython ?? firstFailure!;
-    detectedPythonPath = best.hasPython ? best.pythonPath : undefined;
-    return best;
+    return firstPython ?? firstFailure!;
+}
+
+async function detectDeps(): Promise<DetectResult> {
+    let result: DetectResult;
+    if (isPythonPathExplicit()) {
+        const p = configuredPythonPath();
+        const py = await probePython(p);
+        result = await detectAt(p, py);
+        if (!py.ok) {
+            // The saved path is gone (e.g. an uninstalled pyenv version, or a path
+            // synced from another PC). Fall back to whatever Python is on PATH.
+            const auto = await autoDetect();
+            if (auto.hasPython) {
+                result = { ...auto, fallbackFrom: { path: p, output: py.output } };
+            }
+        }
+    } else {
+        result = await autoDetect();
+    }
+    detectedPythonPath = result.hasPython ? result.pythonPath : undefined;
+    return result;
 }
 
 // ─── Panel singleton ─────────────────────────────────────────────────────────
@@ -211,7 +222,13 @@ setupPanel.webview.onDidReceiveMessage(async (msg: SetupMessage) => {
 /** Called on every activation. Opens the setup panel only if a dependency is missing. */
 export async function checkDependencies(context: vscode.ExtensionContext): Promise<void> {
     const result = await detectDeps();
-    if (result.hasPython && result.hasLxml) return;
+    if (result.hasPython && result.hasLxml) {
+        if (result.fallbackFrom) {
+            vscode.window.showWarningMessage(
+                `XSLT Viewer: the saved Python path "${result.fallbackFrom.path}" no longer works, so "${result.pythonPath}" is being used instead. Update or clear the xslt-viewer.pythonPath setting.`);
+        }
+        return;
+    }
     openOrRevealSetupPanel(context, result);
 }
 
@@ -291,11 +308,13 @@ function getPythonInstallBody(platform: 'win' | 'mac' | 'linux'): string {
     ${order.map((name, i) => `<div class="tab-panel${i === 0 ? ' active' : ''}" id="py-${name}">${tabs[name]}</div>`).join('')}`;
 }
 
-function getLxmlInstallBody(platform: 'win' | 'mac' | 'linux', hasPython: boolean): string {
+function getLxmlInstallBody(pythonPath: string, hasPython: boolean): string {
     if (!hasPython) {
         return '<p class="note">Complete Step 1 first, then come back to install lxml.</p>';
     }
-    const cmd = platform === 'win' ? 'pip install lxml' : 'pip3 install lxml';
+    // Install into the exact interpreter the extension uses, not whichever pip is on PATH.
+    const exe = /\s/.test(pythonPath) ? `"${pythonPath}"` : pythonPath;
+    const cmd = `${exe} -m pip install lxml`;
     return `
     <p>Open a terminal and run:</p>
     ${codeBlock(cmd)}
@@ -337,7 +356,7 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
         : step(
             hasPython ? 1 : 2,
             'Install the <code>lxml</code> package',
-            getLxmlInstallBody(platform, hasPython),
+            getLxmlInstallBody(pythonPath, hasPython),
             !hasPython
         );
 
@@ -349,6 +368,7 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
             <table class="diag-table">
                 <thead><tr><th>Command</th><th></th><th>Output</th></tr></thead>
                 <tbody>
+                    ${result.fallbackFrom ? diagRow(`${result.fallbackFrom.path} --version`, false, result.fallbackFrom.output) : ''}
                     ${diagRow(result.pythonProbe, result.hasPython, result.pythonOutput)}
                     ${diagRow(result.lxmlProbe, result.hasLxml, result.lxmlOutput)}
                 </tbody>
@@ -380,6 +400,12 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
     .header-icon { font-size: 36px; line-height: 1; flex-shrink: 0; }
     .header-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
     .header-sub { font-size: 13px; color: var(--vscode-descriptionForeground); }
+
+    .fallback-note {
+        font-size: 12px; line-height: 1.6; margin-bottom: 16px; padding: 10px 14px; border-radius: 6px;
+        background: rgba(230,160,40,0.12); border: 1px solid rgba(230,160,40,0.3);
+    }
+    .fallback-note code { font-family: var(--vscode-editor-font-family, monospace); }
 
     /* ── Status badges ── */
     .status-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 32px; }
@@ -541,6 +567,8 @@ function getSetupHtml(result: DetectResult, platform: 'win' | 'mac' | 'linux'): 
         }</div>
     </div>
 </div>
+
+${result.fallbackFrom ? `<div class="fallback-note">Your saved Python path <code>${escHtml(result.fallbackFrom.path)}</code> no longer works, so XSLT Viewer is using <code>${escHtml(pythonPath)}</code> instead. Clear or update the path in Settings (<code>xslt-viewer.pythonPath</code>) to stop seeing this.</div>` : ''}
 
 <div class="status-row">
     ${badge(hasPython, 'Python 3')}
