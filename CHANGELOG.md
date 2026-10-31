@@ -2,6 +2,13 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.41
+
+### Fixed
+- **Setup**: Quick setup now finds Python 3 when only "python3" or "py" is installed, instead of saying Python is missing.
+- **Setup**: Quick setup no longer reports Python 2 as Python 3.
+- **Setup**: Saving a custom Python path now re-checks right away, and the check no longer hangs if Python stops responding.
+
 ## 2.2.40
 
 ### Changed

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
+import { getPythonPath } from './setup';
 
 /**
  * Run XSLT transformation via Python lxml script.
@@ -13,8 +14,7 @@ export function runPythonTransformation(
 ): Promise<string> {
     return new Promise((resolve, reject) => {
         const scriptPath = context.asAbsolutePath(path.join('resources', 'python', 'transform.py'));
-        const config = vscode.workspace.getConfiguration('xslt-viewer');
-        const pythonPath = config.get<string>('pythonPath') || 'python';
+        const pythonPath = getPythonPath();
 
         const proc = cp.spawn(pythonPath, [scriptPath]);
         let stdout = '';

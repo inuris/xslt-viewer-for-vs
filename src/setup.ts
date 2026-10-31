@@ -14,20 +14,29 @@ interface ProbeResult {
     output: string; // combined stdout + stderr, trimmed
 }
 
+const PROBE_TIMEOUT_MS = 15000;
+
 function probeCommand(cmd: string, args: string[]): Promise<ProbeResult> {
     return new Promise(resolve => {
+        let settled = false;
+        const finish = (r: ProbeResult) => { if (!settled) { settled = true; resolve(r); } };
         try {
             // No shell:true — args are passed directly to the process so
             // multi-word arguments like ['-c', 'import lxml'] are never
             // misinterpreted by cmd.exe on Windows.
             const proc = spawn(cmd, args);
             let out = '';
+            // A hung interpreter must not leave the "Checking…" button stuck forever.
+            const timer = setTimeout(() => {
+                proc.kill();
+                finish({ ok: false, output: (out.trim() + `\n(timed out after ${PROBE_TIMEOUT_MS / 1000}s)`).trim() });
+            }, PROBE_TIMEOUT_MS);
             proc.stdout?.on('data', (d: Buffer) => { out += d.toString(); });
             proc.stderr?.on('data', (d: Buffer) => { out += d.toString(); });
-            proc.on('close', code => resolve({ ok: code === 0, output: out.trim() }));
-            proc.on('error', e => resolve({ ok: false, output: e.message }));
+            proc.on('close', code => { clearTimeout(timer); finish({ ok: code === 0, output: out.trim() }); });
+            proc.on('error', e => { clearTimeout(timer); finish({ ok: false, output: e.message }); });
         } catch (e: unknown) {
-            resolve({ ok: false, output: e instanceof Error ? e.message : String(e) });
+            finish({ ok: false, output: e instanceof Error ? e.message : String(e) });
         }
     });
 }
@@ -42,10 +51,57 @@ interface DetectResult {
     lxmlOutput: string;
 }
 
-async function detectDeps(pythonPath: string): Promise<DetectResult> {
-    const pyResult = await probeCommand(pythonPath, ['--version']);
+/** Interpreter found by auto-detection when the user has not set xslt-viewer.pythonPath. */
+let detectedPythonPath: string | undefined;
+
+/** True when the user explicitly configured xslt-viewer.pythonPath (any scope). */
+function isPythonPathExplicit(): boolean {
+    const info = vscode.workspace.getConfiguration('xslt-viewer').inspect<string>('pythonPath');
+    const v = info?.workspaceFolderValue ?? info?.workspaceValue ?? info?.globalValue;
+    return typeof v === 'string' && v.trim() !== '';
+}
+
+function configuredPythonPath(): string {
+    return (vscode.workspace.getConfiguration('xslt-viewer').get<string>('pythonPath') || '').trim() || 'python';
+}
+
+/**
+ * The interpreter the extension should run. Uses the user's setting when set,
+ * otherwise whatever auto-detection found (e.g. `python3` on macOS/Linux where
+ * plain `python` usually doesn't exist), falling back to `python`.
+ */
+export function getPythonPath(): string {
+    if (isPythonPathExplicit()) return configuredPythonPath();
+    return detectedPythonPath ?? configuredPythonPath();
+}
+
+/** Candidates tried, in order, when the user has not set a path. */
+function autoCandidates(): string[] {
+    return process.platform === 'win32'
+        ? ['python', 'py', 'python3']
+        : ['python3', 'python'];
+}
+
+/** Parses "Python 3.12.1" → 3. Returns undefined when the output has no version. */
+function pythonMajor(output: string): number | undefined {
+    const m = /Python\s+(\d+)\./i.exec(output);
+    return m ? Number(m[1]) : undefined;
+}
+
+async function probePython(pythonPath: string): Promise<ProbeResult> {
+    const r = await probeCommand(pythonPath, ['--version']);
+    if (!r.ok) return r;
+    const major = pythonMajor(r.output);
+    // transform.py needs Python 3 — Python 2's `--version` also exits 0.
+    if (major !== undefined && major < 3) {
+        return { ok: false, output: `${r.output} (Python 3 is required)` };
+    }
+    return r;
+}
+
+async function detectAt(pythonPath: string, pyResult: ProbeResult): Promise<DetectResult> {
     const lxmlResult = pyResult.ok
-        ? await probeCommand(pythonPath, ['-c', 'import lxml; import lxml.etree; print(lxml.etree.LXML_VERSION)'])
+        ? await probeCommand(pythonPath, ['-c', 'import lxml.etree; print(lxml.etree.LXML_VERSION)'])
         : { ok: false, output: '(skipped — Python not found)' };
 
     return {
@@ -54,9 +110,33 @@ async function detectDeps(pythonPath: string): Promise<DetectResult> {
         pythonPath,
         pythonProbe: `${pythonPath} --version`,
         pythonOutput: pyResult.output || (pyResult.ok ? '(ok)' : '(no output)'),
-        lxmlProbe: `${pythonPath} -c "import lxml"`,
+        lxmlProbe: `${pythonPath} -c "import lxml.etree"`,
         lxmlOutput: lxmlResult.output || (lxmlResult.ok ? '(ok)' : '(no output)'),
     };
+}
+
+async function detectDeps(): Promise<DetectResult> {
+    if (isPythonPathExplicit()) {
+        const p = configuredPythonPath();
+        return detectAt(p, await probePython(p));
+    }
+
+    // Auto mode: prefer the first candidate that has lxml, else the first Python 3 found.
+    let firstPython: DetectResult | undefined;
+    let firstFailure: DetectResult | undefined;
+    for (const candidate of autoCandidates()) {
+        const py = await probePython(candidate);
+        const result = await detectAt(candidate, py);
+        if (result.hasPython && result.hasLxml) {
+            detectedPythonPath = candidate;
+            return result;
+        }
+        if (result.hasPython && !firstPython) firstPython = result;
+        if (!firstFailure) firstFailure = result;
+    }
+    const best = firstPython ?? firstFailure!;
+    detectedPythonPath = best.hasPython ? best.pythonPath : undefined;
+    return best;
 }
 
 // ─── Panel singleton ─────────────────────────────────────────────────────────
@@ -94,8 +174,7 @@ setupPanel.webview.onDidReceiveMessage(async (msg: SetupMessage) => {
             if (setupPanel) setupPanel.webview.postMessage({ command: 'checking' });
             let didDispose = false;
             try {
-                const pythonPath = vscode.workspace.getConfiguration('xslt-viewer').get<string>('pythonPath') ?? 'python';
-                const fresh = await detectDeps(pythonPath);
+                const fresh = await detectDeps();
                 if (fresh.hasPython && fresh.hasLxml) {
                     setupPanel?.dispose();
                     didDispose = true;
@@ -110,8 +189,19 @@ setupPanel.webview.onDidReceiveMessage(async (msg: SetupMessage) => {
             }
         }
         if (msg.command === 'savePythonPath' && typeof msg.pythonPath === 'string') {
-            vscode.workspace.getConfiguration('xslt-viewer').update('pythonPath', msg.pythonPath.trim() || 'python', vscode.ConfigurationTarget.Global);
-            vscode.window.showInformationMessage('Python path saved. Click Check Again to verify.');
+            // Await the write so the re-check below reads the new value, not the old one.
+            // An empty path clears the setting and returns to auto-detection.
+            await vscode.workspace.getConfiguration('xslt-viewer').update('pythonPath', msg.pythonPath.trim() || undefined, vscode.ConfigurationTarget.Global);
+            if (!setupPanel) return;
+            setupPanel.webview.postMessage({ command: 'checking' });
+            const fresh = await detectDeps();
+            if (fresh.hasPython && fresh.hasLxml) {
+                setupPanel?.dispose();
+                vscode.window.showInformationMessage('✅ Python path saved. Python and lxml are ready. XSLT Viewer is good to go!');
+            } else if (setupPanel) {
+                setupPanel.webview.html = getSetupHtml(fresh, platform);
+                vscode.window.showWarningMessage('Python path saved, but the check still fails. See the diagnostic log in the setup panel.');
+            }
         }
     }, undefined, context.subscriptions);
 }
@@ -120,16 +210,14 @@ setupPanel.webview.onDidReceiveMessage(async (msg: SetupMessage) => {
 
 /** Called on every activation. Opens the setup panel only if a dependency is missing. */
 export async function checkDependencies(context: vscode.ExtensionContext): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('xslt-viewer').get<string>('pythonPath') ?? 'python';
-    const result = await detectDeps(pythonPath);
+    const result = await detectDeps();
     if (result.hasPython && result.hasLxml) return;
     openOrRevealSetupPanel(context, result);
 }
 
 /** Forced open — triggered by the `xslt-viewer.showSetup` command. Always shows the panel. */
 export async function showSetupForced(context: vscode.ExtensionContext): Promise<void> {
-    const pythonPath = vscode.workspace.getConfiguration('xslt-viewer').get<string>('pythonPath') ?? 'python';
-    const result = await detectDeps(pythonPath);
+    const result = await detectDeps();
     openOrRevealSetupPanel(context, result);
 }
 
@@ -161,7 +249,7 @@ function escHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function escAttr(s: string): string {
-    return s.replace(/"/g, '&quot;');
+    return escHtml(s).replace(/"/g, '&quot;');
 }
 
 function diagRow(probe: string, ok: boolean, output: string): string {
@@ -482,7 +570,7 @@ ${diagSection}
     function savePath() {
         const input = document.getElementById('python-path-input');
         const val = input ? input.value.trim() : '';
-        post('savePythonPath', { pythonPath: val || 'python' });
+        post('savePythonPath', { pythonPath: val });
     }
 
     function startCheck() {

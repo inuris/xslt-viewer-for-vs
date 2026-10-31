@@ -8,7 +8,7 @@
   },
   "description": "Live XSLT preview, formatter, and image manager",
   "icon": "icon.png",
-  "version": "2.2.40",
+  "version": "2.2.41",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -72,8 +72,8 @@
       "properties": {
         "xslt-viewer.pythonPath": {
           "type": "string",
-          "default": "python",
-          "description": "Path to the Python interpreter (must have lxml installed)."
+          "default": "",
+          "description": "Path to the Python 3 interpreter (must have lxml installed). Leave empty to auto-detect (python3, python, or py)."
         },
         "xslt-viewer.formatIndentSize": {
           "type": "number",
