@@ -413,6 +413,10 @@ export function activate(context: vscode.ExtensionContext) {
                                 vscode.ViewColumn.One,
                                 { enableScripts: true }
                             );
+                            editPanel.iconPath = {
+                                light: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'edit-image-light.svg'),
+                                dark: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'edit-image-dark.svg'),
+                            };
                             editPanel.onDidDispose(() => {
                                 if (currentPanel) {
                                     currentPanel.webview.postMessage({ command: 'previewResetImage' });

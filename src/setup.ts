@@ -171,6 +171,10 @@ function openOrRevealSetupPanel(context: vscode.ExtensionContext, result: Detect
         vscode.ViewColumn.One,
         { enableScripts: true }
     );
+    setupPanel.iconPath = {
+        light: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'setup-light.svg'),
+        dark: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'setup-dark.svg'),
+    };
     setupPanel.webview.html = getSetupHtml(result, platform);
 
     setupPanel.onDidDispose(() => { setupPanel = undefined; }, null, context.subscriptions);

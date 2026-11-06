@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.45
+
+### Changed
+- **Preview**: The Edit Image and Setup tabs now have their own icons, matching the preview tab.
+
 ## 2.2.44
 
 ### Changed
