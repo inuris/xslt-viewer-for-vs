@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.44
+
+### Changed
+- **Preview**: The preview tab name now shows the XSLT file name, e.g. "XSLT Preview [m1001.xslt]".
+
 ## 2.2.43
 
 ### Changed

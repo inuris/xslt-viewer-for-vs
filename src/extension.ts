@@ -223,6 +223,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const runUpdate = async () => {
         if (!currentPanel || !activeXml || !activeXslt) return;
+        currentPanel.title = `XSLT Preview [${path.basename(activeXslt.uri.fsPath)}]`;
 
         let resultHtml = '';
         try {
