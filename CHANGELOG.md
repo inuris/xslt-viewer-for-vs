@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.43
+
+### Changed
+- **Preview**: The XSLT Preview tab now has its own two-tone preview icon.
+
 ## 2.2.42
 
 ### Fixed

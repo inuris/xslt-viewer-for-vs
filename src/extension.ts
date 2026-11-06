@@ -356,6 +356,10 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.ViewColumn.Two,
                 { enableScripts: true, retainContextWhenHidden: true }
             );
+            currentPanel.iconPath = {
+                light: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'preview-light.svg'),
+                dark: vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'preview-dark.svg'),
+            };
 
             // Read only the **user** (Global) value for previewZoom, ignoring any workspace override.
             const inspected = vscode.workspace
