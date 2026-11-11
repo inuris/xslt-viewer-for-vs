@@ -1452,6 +1452,25 @@ export function wrapForIframe(content: string): string {
                 row.appendChild(v);
                 tipRows.appendChild(row);
             }
+            // Estimate how many characters fit on one line: content width (box minus padding
+            // and border) divided by the measured width of a character in this element's font,
+            // plus letter-spacing. "avg" uses mixed text; "caps" uses uppercase + digits (wider).
+            var measureCtx = document.createElement('canvas').getContext('2d');
+            var SAMPLE_AVG = 'The quick brown fox jumps over the lazy dog 0123456789';
+            var SAMPLE_CAPS = 'THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG 0123456789';
+            function charsPerLine(el, cs, r) {
+                if (!measureCtx) return null;
+                var px = function(v) { return parseFloat(v) || 0; };
+                var contentW = r.width - px(cs.paddingLeft) - px(cs.paddingRight) - px(cs.borderLeftWidth) - px(cs.borderRightWidth);
+                if (contentW <= 0) return null;
+                measureCtx.font = [cs.fontStyle, cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ');
+                var ls = cs.letterSpacing === 'normal' ? 0 : px(cs.letterSpacing);
+                function fit(sample) {
+                    var w = measureCtx.measureText(sample).width / sample.length + ls;
+                    return w > 0 ? Math.floor(contentW / w) : 0;
+                }
+                return { avg: fit(SAMPLE_AVG), caps: fit(SAMPLE_CAPS), width: contentW, ls: ls };
+            }
             function showTip(el) {
                 var r = el.getBoundingClientRect();
                 var cs = window.getComputedStyle(el);
@@ -1472,6 +1491,9 @@ export function wrapForIframe(content: string): string {
                     addRow('Border', cs.borderTopWidth + ' ' + cs.borderTopStyle + (bc ? ' ' + bc.hex : ''), bc ? bc.css : '');
                 }
                 if (cs.textAlign && cs.textAlign !== 'start') addRow('Text align', cs.textAlign);
+                if (cs.letterSpacing && cs.letterSpacing !== 'normal' && cs.letterSpacing !== '0px') addRow('Letter spacing', cs.letterSpacing);
+                var cpl = charsPerLine(el, cs, r);
+                if (cpl) addRow('Chars / line', '~' + cpl.avg + ' (caps ~' + cpl.caps + ') in ' + round2(cpl.width) + 'px');
                 tip.style.display = 'block';
                 var topVal = r.top - tip.offsetHeight - 4;
                 if (topVal < 8) topVal = r.bottom + 4;

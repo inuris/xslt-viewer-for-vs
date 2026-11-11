@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.46
+
+### Added
+- **Preview**: Hover box now shows letter spacing and roughly how many characters fit on one line, for normal text and for capitals.
+
 ## 2.2.45
 
 ### Changed
