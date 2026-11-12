@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.3.0
+
+### Changed
+- **Preview**: Hover box groups are now separated by a plain line, without section titles.
+
 ## 2.2.47
 
 ### Changed

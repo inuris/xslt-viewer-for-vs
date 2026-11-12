@@ -1471,10 +1471,9 @@ export function wrapForIframe(content: string): string {
                 }
                 return { avg: fit(SAMPLE_AVG), caps: fit(SAMPLE_CAPS), width: contentW, ls: ls };
             }
-            function addSection(title) {
+            function addSection() {
                 var sec = document.createElement('div');
-                sec.style.cssText = 'margin:6px 0 2px;padding-top:4px;border-top:1px solid #e0e0e0;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;color:#9aa0a6;';
-                sec.textContent = title;
+                sec.style.cssText = 'margin:5px 0 4px;border-top:1px solid #e0e0e0;';
                 tipRows.appendChild(sec);
             }
             function showTip(el) {
@@ -1484,8 +1483,8 @@ export function wrapForIframe(content: string): string {
                 tipDims.textContent = round2(r.width) + ' × ' + round2(r.height);
                 tipRows.textContent = '';
                 var px = function(v) { return parseFloat(v) || 0; };
-                // Block: the box itself, ending with the real space left for text.
-                addSection('Block');
+                // Block group: the box itself, ending with the real space left for text.
+                addSection();
                 var bg = parseColor(cs.backgroundColor);
                 if (bg && bg.alpha > 0) addRow('Background', bg.hex, bg.css);
                 var pad = boxShorthand(cs, 'padding');
@@ -1499,8 +1498,8 @@ export function wrapForIframe(content: string): string {
                 var contentH = r.height - px(cs.paddingTop) - px(cs.paddingBottom) - px(cs.borderTopWidth) - px(cs.borderBottomWidth);
                 var cpl = charsPerLine(el, cs, r);
                 if (cpl) addRow('Text space', round2(cpl.width) + ' × ' + round2(Math.max(0, contentH)));
-                // Typography: how text inside the box is set.
-                addSection('Text');
+                // Text group: how text inside the box is set.
+                addSection();
                 addRow('Font', cs.fontSize + ' ' + cs.fontFamily + (cs.fontWeight !== '400' ? ' (' + cs.fontWeight + ')' : ''));
                 var color = parseColor(cs.color);
                 if (color) addRow('Color', color.hex, color.css);
