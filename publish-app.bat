@@ -5,6 +5,25 @@ echo  XSLT Viewer - Publisher Tool
 echo ==========================================
 echo.
 
+REM Always run from the script's folder so relative paths (CHANGELOG.md, package.json) resolve
+cd /d "%~dp0"
+
+REM Fetch latest from git (pull, then push any local commits) before publishing
+echo [INFO] Fetching latest from git ...
+git pull --prune --no-edit
+if errorlevel 1 (
+    echo [ERROR] git pull failed. Resolve it, then run again.
+    pause
+    exit /b 1
+)
+git push
+if errorlevel 1 (
+    echo [ERROR] git push failed. Resolve it, then run again.
+    pause
+    exit /b 1
+)
+echo.
+
 REM Ensure Node is available (required for version read/write)
 where node >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
@@ -123,7 +142,8 @@ if "%VSCE_CODE%"=="0" (
 
 echo.
 echo [2/2] Publishing to Open VSX (Eclipse / Cursor)...
-call npx ovsx publish -p %OVSX_TOKEN%
+REM --yes auto-approves npx installing/updating ovsx; @latest picks up new releases
+call npx --yes ovsx@latest publish -p %OVSX_TOKEN%
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Open VSX publish failed.
