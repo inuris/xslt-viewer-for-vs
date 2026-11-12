@@ -1471,29 +1471,43 @@ export function wrapForIframe(content: string): string {
                 }
                 return { avg: fit(SAMPLE_AVG), caps: fit(SAMPLE_CAPS), width: contentW, ls: ls };
             }
+            function addSection(title) {
+                var sec = document.createElement('div');
+                sec.style.cssText = 'margin:6px 0 2px;padding-top:4px;border-top:1px solid #e0e0e0;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;color:#9aa0a6;';
+                sec.textContent = title;
+                tipRows.appendChild(sec);
+            }
             function showTip(el) {
                 var r = el.getBoundingClientRect();
                 var cs = window.getComputedStyle(el);
                 tipSelector.textContent = buildSelector(el);
                 tipDims.textContent = round2(r.width) + ' × ' + round2(r.height);
                 tipRows.textContent = '';
-                var color = parseColor(cs.color);
-                if (color) addRow('Color', color.hex, color.css);
-                addRow('Font', cs.fontSize + ' ' + cs.fontFamily + (cs.fontWeight !== '400' ? ' (' + cs.fontWeight + ')' : ''));
+                var px = function(v) { return parseFloat(v) || 0; };
+                // Block: the box itself, ending with the real space left for text.
+                addSection('Block');
                 var bg = parseColor(cs.backgroundColor);
                 if (bg && bg.alpha > 0) addRow('Background', bg.hex, bg.css);
                 var pad = boxShorthand(cs, 'padding');
                 if (pad !== '0px') addRow('Padding', pad);
-                var mar = boxShorthand(cs, 'margin');
-                if (mar !== '0px') addRow('Margin', mar);
                 if (cs.borderTopStyle !== 'none' && cs.borderTopWidth !== '0px') {
                     var bc = parseColor(cs.borderTopColor);
                     addRow('Border', cs.borderTopWidth + ' ' + cs.borderTopStyle + (bc ? ' ' + bc.hex : ''), bc ? bc.css : '');
                 }
-                if (cs.textAlign && cs.textAlign !== 'start') addRow('Text align', cs.textAlign);
-                if (cs.letterSpacing && cs.letterSpacing !== 'normal' && cs.letterSpacing !== '0px') addRow('Letter spacing', cs.letterSpacing);
+                var mar = boxShorthand(cs, 'margin');
+                if (mar !== '0px') addRow('Margin', mar);
+                var contentH = r.height - px(cs.paddingTop) - px(cs.paddingBottom) - px(cs.borderTopWidth) - px(cs.borderBottomWidth);
                 var cpl = charsPerLine(el, cs, r);
-                if (cpl) addRow('Chars / line', '~' + cpl.avg + ' (caps ~' + cpl.caps + ') in ' + round2(cpl.width) + 'px');
+                if (cpl) addRow('Text space', round2(cpl.width) + ' × ' + round2(Math.max(0, contentH)));
+                // Typography: how text inside the box is set.
+                addSection('Text');
+                addRow('Font', cs.fontSize + ' ' + cs.fontFamily + (cs.fontWeight !== '400' ? ' (' + cs.fontWeight + ')' : ''));
+                var color = parseColor(cs.color);
+                if (color) addRow('Color', color.hex, color.css);
+                addRow('Line height', cs.lineHeight);
+                if (cs.letterSpacing && cs.letterSpacing !== 'normal' && cs.letterSpacing !== '0px') addRow('Letter spacing', cs.letterSpacing);
+                if (cs.textAlign && cs.textAlign !== 'start') addRow('Text align', cs.textAlign);
+                if (cpl) addRow('Chars / line', (cpl.caps === cpl.avg ? cpl.avg : cpl.caps + ' ~ ' + cpl.avg) + ' chars');
                 tip.style.display = 'block';
                 var topVal = r.top - tip.offsetHeight - 4;
                 if (topVal < 8) topVal = r.bottom + 4;

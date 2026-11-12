@@ -2,6 +2,11 @@
 
 All notable changes to this extension will be documented in this file.
 
+## 2.2.47
+
+### Changed
+- **Preview**: Hover box is now split into Block and Text sections, shows the real text space inside padding and border, adds line height, and shows characters per line as a range like "22 ~ 27 chars".
+
 ## 2.2.46
 
 ### Added
