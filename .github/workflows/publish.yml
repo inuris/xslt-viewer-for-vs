@@ -1,0 +1,46 @@
+name: Publish extension
+
+# Publishes to the VS Code Marketplace and Open VSX whenever package.json
+# changes on main (i.e. a version bump). Versions already on a store are
+# skipped, so re-runs and non-version edits to package.json are harmless.
+# Needs repo secrets VSCE_PAT and OVSX_PAT.
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Package
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Packaging version $VERSION"
+          npx --yes @vscode/vsce package -o extension.vsix
+
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --yes @vscode/vsce publish --packagePath extension.vsix --skip-duplicate
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --yes ovsx@latest publish extension.vsix --skip-duplicate
